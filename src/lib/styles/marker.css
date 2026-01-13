@@ -1,0 +1,88 @@
+/* Marker container */
+.streetview-marker {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  cursor: pointer;
+}
+
+/* Marker dot (center point) */
+.streetview-marker-dot {
+  width: 16px;
+  height: 16px;
+  background: #ff5722;
+  border: 2px solid white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+
+/* Direction indicator (arrow/cone) */
+.streetview-marker-direction {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 24px solid #1976d2;
+  top: -6px;
+  left: 50%;
+  transform-origin: center calc(100% + 6px);
+  transform: translateX(-50%) rotate(0deg);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+  transition: transform 0.15s ease-out;
+  z-index: 0;
+}
+
+/* Marker with direction hidden */
+.streetview-marker.no-direction .streetview-marker-direction {
+  display: none;
+}
+
+/* Marker hover state */
+.streetview-marker:hover .streetview-marker-dot {
+  transform: translate(-50%, -50%) scale(1.1);
+}
+
+/* Marker pulse animation for selection */
+.streetview-marker.selected .streetview-marker-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: inherit;
+  transform: translate(-50%, -50%);
+  animation: streetview-marker-pulse 1.5s ease-out infinite;
+}
+
+@keyframes streetview-marker-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.5);
+    opacity: 0;
+  }
+}
+
+/* Custom color support via CSS variables */
+.streetview-marker {
+  --marker-color: #ff5722;
+  --marker-direction-color: #1976d2;
+}
+
+.streetview-marker .streetview-marker-dot {
+  background: var(--marker-color);
+}
+
+.streetview-marker .streetview-marker-direction {
+  border-bottom-color: var(--marker-direction-color);
+}

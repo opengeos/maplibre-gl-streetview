@@ -1,0 +1,98 @@
+/* No data message container */
+.streetview-no-data {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  text-align: center;
+  color: #666;
+  background: #f5f5f5;
+  height: 100%;
+  min-height: 200px;
+}
+
+/* No data icon */
+.streetview-no-data-icon {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}
+
+.streetview-no-data-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* No data title */
+.streetview-no-data-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+/* No data message */
+.streetview-no-data-message {
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 280px;
+  color: #666;
+}
+
+/* Action button container */
+.streetview-no-data-action {
+  margin-top: 16px;
+}
+
+/* Retry/search button */
+.streetview-no-data-button {
+  padding: 8px 20px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.streetview-no-data-button:hover {
+  background: #1565c0;
+}
+
+.streetview-no-data-button:active {
+  background: #0d47a1;
+}
+
+.streetview-no-data-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Searching state */
+.streetview-no-data.searching .streetview-no-data-icon {
+  animation: streetview-no-data-pulse 1s ease-in-out infinite;
+}
+
+@keyframes streetview-no-data-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Error state */
+.streetview-no-data.error .streetview-no-data-icon {
+  color: #d32f2f;
+  opacity: 0.6;
+}
+
+.streetview-no-data.error .streetview-no-data-title {
+  color: #d32f2f;
+}

@@ -1,0 +1,7 @@
+/* Import all component styles */
+@import './lib/styles/streetview-control.css';
+@import './lib/styles/panel.css';
+@import './lib/styles/provider-tabs.css';
+@import './lib/styles/viewer.css';
+@import './lib/styles/marker.css';
+@import './lib/styles/no-data.css';
