@@ -141,9 +141,31 @@ export class MapillaryProvider extends BaseProvider {
       imageId: imagery.id,
     });
 
-    // Subscribe to bearing changes
+    // Subscribe to bearing changes (when user rotates the view)
     this._viewer.on('bearing', (event) => {
       this.emitHeadingChange(event.bearing);
+    });
+
+    // Subscribe to image changes (when user navigates to a different image)
+    this._viewer.on('image', (event) => {
+      const image = event.image;
+      if (image) {
+        // Get position from image
+        const lngLat = image.lngLat;
+        if (lngLat) {
+          this.emitLocationChange(new LngLat(lngLat.lng, lngLat.lat));
+        }
+        // Get the current view bearing after image loads
+        this._viewer?.getBearing().then((bearing) => {
+          this.emitHeadingChange(bearing);
+        }).catch(() => {
+          // Fallback to compass angle if bearing not available
+          const compassAngle = image.compassAngle;
+          if (compassAngle !== undefined) {
+            this.emitHeadingChange(compassAngle);
+          }
+        });
+      }
     });
 
     // Emit initial heading if available

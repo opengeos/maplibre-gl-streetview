@@ -250,4 +250,10 @@ export interface IStreetViewProvider {
 
   /** Unsubscribe from heading changes */
   offHeadingChange(callback: (heading: number) => void): void;
+
+  /** Subscribe to location changes */
+  onLocationChange(callback: (location: LngLat) => void): void;
+
+  /** Unsubscribe from location changes */
+  offLocationChange(callback: (location: LngLat) => void): void;
 }

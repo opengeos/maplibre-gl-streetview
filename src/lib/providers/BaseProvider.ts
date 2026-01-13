@@ -1,4 +1,4 @@
-import type { LngLatLike } from 'maplibre-gl';
+import { LngLat, type LngLatLike } from 'maplibre-gl';
 import type { ProviderType, ImageryResult, ViewState, IStreetViewProvider } from '../core/types';
 
 /**
@@ -11,6 +11,7 @@ export abstract class BaseProvider implements IStreetViewProvider {
 
   protected _container: HTMLElement | null = null;
   protected _headingCallbacks: Set<(heading: number) => void> = new Set();
+  protected _locationCallbacks: Set<(location: LngLat) => void> = new Set();
   protected _currentHeading = 0;
 
   /**
@@ -83,6 +84,35 @@ export abstract class BaseProvider implements IStreetViewProvider {
     this._currentHeading = heading;
     for (const callback of this._headingCallbacks) {
       callback(heading);
+    }
+  }
+
+  /**
+   * Subscribe to location change events.
+   *
+   * @param callback - Function to call when location changes
+   */
+  onLocationChange(callback: (location: LngLat) => void): void {
+    this._locationCallbacks.add(callback);
+  }
+
+  /**
+   * Unsubscribe from location change events.
+   *
+   * @param callback - The callback to remove
+   */
+  offLocationChange(callback: (location: LngLat) => void): void {
+    this._locationCallbacks.delete(callback);
+  }
+
+  /**
+   * Emit a location change to all subscribers.
+   *
+   * @param location - The new location
+   */
+  protected emitLocationChange(location: LngLat): void {
+    for (const callback of this._locationCallbacks) {
+      callback(location);
     }
   }
 

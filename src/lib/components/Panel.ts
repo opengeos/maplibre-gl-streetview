@@ -39,6 +39,9 @@ export class Panel {
   private _startY = 0;
   private _startWidth = 0;
   private _startHeight = 0;
+  private _mapContainer: HTMLElement | null = null;
+  private _button: HTMLElement | null = null;
+  private _onWindowResize: () => void;
 
   /**
    * Creates a new Panel instance.
@@ -65,6 +68,10 @@ export class Panel {
     this._element.appendChild(this._resizeHandle);
 
     this.setupResizeHandlers();
+
+    // Setup window resize handler
+    this._onWindowResize = this.handleWindowResize.bind(this);
+    window.addEventListener('resize', this._onWindowResize);
   }
 
   /**
@@ -146,6 +153,25 @@ export class Panel {
   };
 
   /**
+   * Gets the maximum allowed panel dimensions based on viewport/container.
+   */
+  private getMaxDimensions(): { maxWidth: number; maxHeight: number } {
+    if (this._mapContainer) {
+      const rect = this._mapContainer.getBoundingClientRect();
+      // Leave some padding around the edges
+      return {
+        maxWidth: rect.width - 40,
+        maxHeight: rect.height - 80,
+      };
+    }
+    // Fallback to viewport dimensions
+    return {
+      maxWidth: window.innerWidth - 40,
+      maxHeight: window.innerHeight - 80,
+    };
+  }
+
+  /**
    * Handles resize movement.
    */
   private onResizeMove = (e: MouseEvent): void => {
@@ -170,11 +196,33 @@ export class Panel {
       newHeight = this._startHeight + deltaY;
     }
 
-    // Apply minimum constraints
-    newWidth = Math.max(this._minWidth, newWidth);
-    newHeight = Math.max(this._minHeight, newHeight);
+    // Get max dimensions
+    const { maxWidth, maxHeight } = this.getMaxDimensions();
 
+    // Apply minimum and maximum constraints
+    newWidth = Math.max(this._minWidth, Math.min(maxWidth, newWidth));
+    newHeight = Math.max(this._minHeight, Math.min(maxHeight, newHeight));
+
+    // Calculate the width and height change
+    const widthDiff = newWidth - this._width;
+    const heightDiff = newHeight - this._height;
+
+    // Update size
     this.setSize(newWidth, newHeight);
+
+    // Adjust position for right-positioned panels (panel grows to the left)
+    if (this._position.includes('right') && widthDiff !== 0) {
+      const currentLeft = parseFloat(this._element.style.left) || 0;
+      const newLeft = Math.max(10, currentLeft - widthDiff);
+      this._element.style.left = `${newLeft}px`;
+    }
+
+    // Adjust position for bottom-positioned panels (panel grows upward)
+    if (this._position.includes('bottom') && heightDiff !== 0) {
+      const currentTop = parseFloat(this._element.style.top) || 0;
+      const newTop = Math.max(10, currentTop - heightDiff);
+      this._element.style.top = `${newTop}px`;
+    }
   };
 
   /**
@@ -269,9 +317,33 @@ export class Panel {
    * @param mapContainer - The map container element
    */
   positionRelativeTo(button: HTMLElement, mapContainer: HTMLElement): void {
-    const buttonRect = button.getBoundingClientRect();
-    const mapRect = mapContainer.getBoundingClientRect();
+    // Store references for window resize handling
+    this._button = button;
+    this._mapContainer = mapContainer;
+
+    this.updatePosition();
+  }
+
+  /**
+   * Updates the panel position based on stored references.
+   */
+  private updatePosition(): void {
+    if (!this._button || !this._mapContainer) return;
+
+    const buttonRect = this._button.getBoundingClientRect();
+    const mapRect = this._mapContainer.getBoundingClientRect();
     const gap = 5;
+
+    // Get max dimensions to constrain size on resize
+    const { maxWidth, maxHeight } = this.getMaxDimensions();
+
+    // Constrain current size to max dimensions
+    const constrainedWidth = Math.min(this._width, maxWidth);
+    const constrainedHeight = Math.min(this._height, maxHeight);
+
+    if (constrainedWidth !== this._width || constrainedHeight !== this._height) {
+      this.setSize(constrainedWidth, constrainedHeight);
+    }
 
     let top: number;
     let left: number;
@@ -288,8 +360,24 @@ export class Panel {
       left = buttonRect.left - mapRect.left;
     }
 
+    // Ensure panel stays within bounds
+    const maxLeft = mapRect.width - this._width - 10;
+    const maxTop = mapRect.height - this._height - 10;
+
+    left = Math.max(10, Math.min(left, maxLeft));
+    top = Math.max(10, Math.min(top, maxTop));
+
     this._element.style.top = `${top}px`;
     this._element.style.left = `${left}px`;
+  }
+
+  /**
+   * Handles window resize events.
+   */
+  private handleWindowResize(): void {
+    if (this.isVisible()) {
+      this.updatePosition();
+    }
   }
 
   /**
@@ -299,6 +387,9 @@ export class Panel {
     this._resizeHandle.removeEventListener('mousedown', this.onResizeStart);
     document.removeEventListener('mousemove', this.onResizeMove);
     document.removeEventListener('mouseup', this.onResizeEnd);
+    window.removeEventListener('resize', this._onWindowResize);
+    this._mapContainer = null;
+    this._button = null;
     this._element.remove();
   }
 }

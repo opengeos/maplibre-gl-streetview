@@ -1,3 +1,4 @@
+import type { LngLat } from 'maplibre-gl';
 import { CSS_CLASSES } from '../core/constants';
 import type { ImageryResult, IStreetViewProvider } from '../core/types';
 import { createElement } from '../utils/helpers';
@@ -7,6 +8,7 @@ import { createElement } from '../utils/helpers';
  */
 export interface ViewerOptions {
   onHeadingChange?: (heading: number) => void;
+  onLocationChange?: (location: LngLat) => void;
 }
 
 /**
@@ -18,8 +20,12 @@ export class Viewer {
   private _initialEl: HTMLElement | null = null;
   private _currentProvider: IStreetViewProvider | null = null;
   private _onHeadingChange?: (heading: number) => void;
+  private _onLocationChange?: (location: LngLat) => void;
   private _headingCallback = (heading: number) => {
     this._onHeadingChange?.(heading);
+  };
+  private _locationCallback = (location: LngLat) => {
+    this._onLocationChange?.(location);
   };
 
   /**
@@ -29,6 +35,7 @@ export class Viewer {
    */
   constructor(options: ViewerOptions = {}) {
     this._onHeadingChange = options.onHeadingChange;
+    this._onLocationChange = options.onLocationChange;
     this._element = this.createViewer();
     this.showInitialState();
   }
@@ -110,6 +117,7 @@ export class Viewer {
     }
     if (this._currentProvider) {
       this._currentProvider.offHeadingChange(this._headingCallback);
+      this._currentProvider.offLocationChange(this._locationCallback);
       this._currentProvider.destroy();
       this._currentProvider = null;
     }
@@ -130,6 +138,7 @@ export class Viewer {
 
     this._currentProvider = provider;
     provider.onHeadingChange(this._headingCallback);
+    provider.onLocationChange(this._locationCallback);
     provider.render(this._element, imagery);
   }
 

@@ -37,7 +37,7 @@ export class StreetViewControl implements IControl {
   private _googleProvider: GoogleStreetViewProvider | null = null;
   private _mapillaryProvider: MapillaryProvider | null = null;
 
-  // State
+  // State - always start collapsed, expand() will be called in onAdd if needed
   private _state: StreetViewState = {
     collapsed: true,
     activeProvider: 'google',
@@ -48,6 +48,9 @@ export class StreetViewControl implements IControl {
     loading: false,
     error: null,
   };
+
+  // Track if initial expansion should happen
+  private _shouldExpandOnAdd = false;
 
   // Event handlers
   private _eventHandlers: Map<StreetViewEvent, Set<StreetViewEventHandler>> = new Map();
@@ -65,8 +68,9 @@ export class StreetViewControl implements IControl {
     this._id = generateId();
 
     // Initialize state from options
-    this._state.collapsed = this._options.collapsed;
     this._state.activeProvider = this._options.defaultProvider;
+    // Track if we should expand on add (state stays collapsed until expand() is called)
+    this._shouldExpandOnAdd = !this._options.collapsed;
 
     // Initialize providers
     if (this._options.googleApiKey) {
@@ -128,6 +132,7 @@ export class StreetViewControl implements IControl {
     // Create viewer
     this._viewer = new Viewer({
       onHeadingChange: (heading) => this.handleHeadingChange(heading),
+      onLocationChange: (location) => this.handleProviderLocationChange(location),
     });
 
     // Assemble panel content
@@ -139,9 +144,12 @@ export class StreetViewControl implements IControl {
     const mapContainer = map.getContainer();
     mapContainer.appendChild(this._panel.getElement());
 
-    // Set initial panel state
-    if (!this._state.collapsed) {
-      this.expand();
+    // Set initial panel state based on options
+    // Use requestAnimationFrame to ensure DOM is fully rendered before positioning
+    if (this._shouldExpandOnAdd) {
+      requestAnimationFrame(() => {
+        this.expand();
+      });
     }
 
     // Setup map click handler
@@ -257,6 +265,17 @@ export class StreetViewControl implements IControl {
     this._state.heading = heading;
     this._marker?.setHeading(heading);
     this.emit('headingchange');
+  }
+
+  /**
+   * Handles location changes from the provider (when user navigates in viewer).
+   */
+  private handleProviderLocationChange(location: LngLat): void {
+    this._state.location = location;
+    if (this._marker && this._map) {
+      this._marker.setLngLat(location);
+    }
+    this.emit('locationchange');
   }
 
   /**
