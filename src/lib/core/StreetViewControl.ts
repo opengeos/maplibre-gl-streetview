@@ -464,6 +464,11 @@ export class StreetViewControl implements IControl {
     this._container?.classList.add('active');
     this.updatePanelPosition();
 
+    // Re-add marker if there's a current location
+    if (this._marker && this._map && this._state.location) {
+      this._marker.addTo(this._map, this._state.location);
+    }
+
     this.emit('expand');
     this.emit('statechange');
   }
@@ -477,6 +482,7 @@ export class StreetViewControl implements IControl {
     this._state.collapsed = true;
     this._panel?.hide();
     this._container?.classList.remove('active');
+    this._marker?.remove();
 
     this.emit('collapse');
     this.emit('statechange');
