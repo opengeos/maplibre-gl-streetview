@@ -22,6 +22,7 @@ export const DEFAULT_OPTIONS: Required<Omit<StreetViewControlOptions, 'googleApi
   title: 'Street View',
   panelWidth: 400,
   panelHeight: 300,
+  maxHeight: 500,
   minPanelWidth: 300,
   minPanelHeight: 200,
   defaultProvider: 'google',

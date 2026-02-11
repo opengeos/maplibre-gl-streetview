@@ -29,6 +29,9 @@ export interface StreetViewControlOptions {
   /** Height of the control panel in pixels. Default: 300 */
   panelHeight?: number;
 
+  /** Maximum height of the control panel in pixels. Default: 500 */
+  maxHeight?: number;
+
   /** Minimum panel width in pixels. Default: 300 */
   minPanelWidth?: number;
 

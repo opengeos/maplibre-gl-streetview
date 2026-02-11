@@ -135,6 +135,11 @@ export class StreetViewControl implements IControl {
       onLocationChange: (location) => this.handleProviderLocationChange(location),
     });
 
+    // Apply maxHeight
+    if (this._options.maxHeight) {
+      this._panel.getElement().style.maxHeight = `${this._options.maxHeight}px`;
+    }
+
     // Assemble panel content
     const panelContent = this._panel.getContent();
     panelContent.appendChild(this._tabs.getElement());
