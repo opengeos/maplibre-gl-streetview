@@ -574,4 +574,8 @@ export class StreetViewControl implements IControl {
   getDefaultPosition(): ControlPosition {
     return this._options.position;
   }
+
+  getPanelElement(): HTMLElement | null {
+    return this._panel?.getElement() ?? null;
+  }
 }
