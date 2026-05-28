@@ -9,7 +9,9 @@ export interface ProviderTabsOptions {
   providers: ProviderType[];
   activeProvider: ProviderType;
   disabledProviders?: ProviderType[];
+  showApiKeyTab?: boolean;
   onSelect: (provider: ProviderType) => void;
+  onApiKeySelect?: () => void;
 }
 
 /**
@@ -20,8 +22,12 @@ export class ProviderTabs {
   private _element: HTMLElement;
   private _providers: ProviderType[];
   private _activeProvider: ProviderType;
+  private _showApiKeyTab: boolean;
+  private _apiKeyTab: HTMLButtonElement | null = null;
+  private _apiKeysActive = false;
   private _disabledProviders: Set<ProviderType>;
   private _onSelect: (provider: ProviderType) => void;
+  private _onApiKeySelect?: () => void;
   private _tabs: Map<ProviderType, HTMLButtonElement> = new Map();
 
   /**
@@ -32,8 +38,10 @@ export class ProviderTabs {
   constructor(options: ProviderTabsOptions) {
     this._providers = options.providers;
     this._activeProvider = options.activeProvider;
+    this._showApiKeyTab = options.showApiKeyTab ?? false;
     this._disabledProviders = new Set(options.disabledProviders ?? []);
     this._onSelect = options.onSelect;
+    this._onApiKeySelect = options.onApiKeySelect;
 
     this._element = this.createTabs();
   }
@@ -44,7 +52,7 @@ export class ProviderTabs {
   private createTabs(): HTMLElement {
     const container = createElement('div', { className: CSS_CLASSES.PROVIDER_TABS });
 
-    if (this._providers.length === 1) {
+    if (this._providers.length === 1 && !this._showApiKeyTab) {
       container.classList.add('single-provider');
     }
 
@@ -52,6 +60,11 @@ export class ProviderTabs {
       const tab = this.createTab(provider);
       this._tabs.set(provider, tab);
       container.appendChild(tab);
+    }
+
+    if (this._showApiKeyTab) {
+      this._apiKeyTab = this.createApiKeyTab();
+      container.appendChild(this._apiKeyTab);
     }
 
     return container;
@@ -100,6 +113,37 @@ export class ProviderTabs {
   }
 
   /**
+   * Creates the API key entry tab.
+   */
+  private createApiKeyTab(): HTMLButtonElement {
+    const tab = document.createElement('button');
+    tab.className = CSS_CLASSES.PROVIDER_TAB;
+    tab.dataset.provider = 'api-keys';
+
+    const icon = createElement('span', { className: 'provider-icon' });
+    icon.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="7.5" cy="15.5" r="3.5"/>
+        <path d="M10 13l8.5-8.5"/>
+        <path d="M15 8l2 2"/>
+        <path d="M17 6l2 2"/>
+      </svg>
+    `;
+
+    const label = createElement('span', { className: 'provider-label' }, ['Keys']);
+
+    tab.appendChild(icon);
+    tab.appendChild(label);
+
+    tab.addEventListener('click', () => {
+      this.setApiKeysActive();
+      this._onApiKeySelect?.();
+    });
+
+    return tab;
+  }
+
+  /**
    * Gets the icon SVG for a provider.
    */
   private getProviderIcon(provider: ProviderType): string {
@@ -138,7 +182,10 @@ export class ProviderTabs {
    * @param provider - The provider to activate
    */
   setActive(provider: ProviderType): void {
-    if (this._activeProvider === provider) return;
+    if (this._activeProvider === provider && !this._apiKeysActive) return;
+
+    this._apiKeysActive = false;
+    this._apiKeyTab?.classList.remove(CSS_CLASSES.PROVIDER_TAB_ACTIVE);
 
     // Remove active class from current tab
     const currentTab = this._tabs.get(this._activeProvider);
@@ -152,6 +199,16 @@ export class ProviderTabs {
       newTab.classList.add(CSS_CLASSES.PROVIDER_TAB_ACTIVE);
       this._activeProvider = provider;
     }
+  }
+
+  /**
+   * Sets the API key tab as active without changing the selected provider.
+   */
+  setApiKeysActive(): void {
+    const currentTab = this._tabs.get(this._activeProvider);
+    currentTab?.classList.remove(CSS_CLASSES.PROVIDER_TAB_ACTIVE);
+    this._apiKeyTab?.classList.add(CSS_CLASSES.PROVIDER_TAB_ACTIVE);
+    this._apiKeysActive = true;
   }
 
   /**
@@ -191,7 +248,7 @@ export class ProviderTabs {
       tab.disabled = !isAvailable || this._disabledProviders.has(provider);
     }
 
-    if (providers.length === 1) {
+    if (providers.length === 1 && !this._showApiKeyTab) {
       this._element.classList.add('single-provider');
     } else {
       this._element.classList.remove('single-provider');

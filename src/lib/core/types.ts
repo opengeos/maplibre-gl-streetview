@@ -47,6 +47,9 @@ export interface StreetViewControlOptions {
   /** Mapillary access token */
   mapillaryAccessToken?: string;
 
+  /** Show API key/token inputs inside the control panel. Default: true */
+  showApiKeyInputs?: boolean;
+
   /** Custom CSS class name */
   className?: string;
 

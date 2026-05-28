@@ -127,6 +127,8 @@ function App() {
 3. Create a new application
 4. Copy your client access token
 
+The control panel also includes a `Keys` tab by default, so users can enter a Google Maps API key or Mapillary access token at runtime. Set `showApiKeyInputs: false` to hide that tab.
+
 ## Options
 
 ### StreetViewControlOptions
@@ -141,6 +143,7 @@ function App() {
 | `defaultProvider` | `'google' \| 'mapillary'` | `'google'` | Default imagery provider |
 | `googleApiKey` | `string` | - | Google Maps API key |
 | `mapillaryAccessToken` | `string` | - | Mapillary access token |
+| `showApiKeyInputs` | `boolean` | `true` | Show the `Keys` tab for Google Maps and Mapillary credentials |
 | `clickToView` | `boolean` | `true` | Enable click-to-view on map |
 | `showMarker` | `boolean` | `true` | Show marker at view location |
 | `maxSearchRadius` | `number` | `100` | Max search radius for nearest imagery (meters) |
