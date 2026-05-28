@@ -10,7 +10,7 @@ import type {
   IStreetViewProvider,
 } from './types';
 import { DEFAULT_OPTIONS, CSS_CLASSES } from './constants';
-import { Panel, ProviderTabs, Viewer, StreetViewMarker, NoDataMessage } from '../components';
+import { Panel, ProviderTabs, Viewer, StreetViewMarker, NoDataMessage, ApiKeyInputs } from '../components';
 import { GoogleStreetViewProvider, MapillaryProvider } from '../providers';
 import { createElement, generateId } from '../utils/helpers';
 import { toLngLat } from '../utils/geo';
@@ -28,6 +28,7 @@ export class StreetViewControl implements IControl {
 
   // UI Components
   private _panel: Panel | null = null;
+  private _apiKeyInputs: ApiKeyInputs | null = null;
   private _tabs: ProviderTabs | null = null;
   private _viewer: Viewer | null = null;
   private _noDataMessage: NoDataMessage | null = null;
@@ -51,6 +52,7 @@ export class StreetViewControl implements IControl {
 
   // Track if initial expansion should happen
   private _shouldExpandOnAdd = false;
+  private _apiKeyPanelVisible = false;
 
   // Event handlers
   private _eventHandlers: Map<StreetViewEvent, Set<StreetViewEventHandler>> = new Map();
@@ -73,12 +75,7 @@ export class StreetViewControl implements IControl {
     this._shouldExpandOnAdd = !this._options.collapsed;
 
     // Initialize providers
-    if (this._options.googleApiKey) {
-      this._googleProvider = new GoogleStreetViewProvider(this._options.googleApiKey);
-    }
-    if (this._options.mapillaryAccessToken) {
-      this._mapillaryProvider = new MapillaryProvider(this._options.mapillaryAccessToken);
-    }
+    this.configureProviders();
 
     // Bind handlers
     this._onMapClick = this.handleMapClick.bind(this);
@@ -126,7 +123,9 @@ export class StreetViewControl implements IControl {
     this._tabs = new ProviderTabs({
       providers: availableProviders,
       activeProvider: this._state.activeProvider,
+      showApiKeyTab: this._options.showApiKeyInputs,
       onSelect: (provider) => this.setProvider(provider),
+      onApiKeySelect: () => this.showApiKeyPanel(),
     });
 
     // Create viewer
@@ -143,6 +142,15 @@ export class StreetViewControl implements IControl {
     // Assemble panel content
     const panelContent = this._panel.getContent();
     panelContent.appendChild(this._tabs.getElement());
+    if (this._options.showApiKeyInputs) {
+      this._apiKeyInputs = new ApiKeyInputs({
+        googleApiKey: this._options.googleApiKey,
+        mapillaryAccessToken: this._options.mapillaryAccessToken,
+        onApply: (values) => this.setApiKeys(values),
+      });
+      this._apiKeyInputs.getElement().hidden = true;
+      panelContent.appendChild(this._apiKeyInputs.getElement());
+    }
     panelContent.appendChild(this._viewer.getElement());
 
     // Add panel to map container
@@ -181,6 +189,7 @@ export class StreetViewControl implements IControl {
 
     // Destroy components
     this._panel?.destroy();
+    this._apiKeyInputs?.destroy();
     this._tabs?.destroy();
     this._viewer?.destroy();
     this._noDataMessage?.destroy();
@@ -198,6 +207,7 @@ export class StreetViewControl implements IControl {
     this._container = null;
     this._button = null;
     this._panel = null;
+    this._apiKeyInputs = null;
     this._tabs = null;
     this._viewer = null;
     this._noDataMessage = null;
@@ -246,6 +256,40 @@ export class StreetViewControl implements IControl {
   }
 
   /**
+   * Initializes providers from the current API key options.
+   */
+  private configureProviders(): void {
+    this._googleProvider = this._options.googleApiKey
+      ? new GoogleStreetViewProvider(this._options.googleApiKey)
+      : null;
+    this._mapillaryProvider = this._options.mapillaryAccessToken
+      ? new MapillaryProvider(this._options.mapillaryAccessToken)
+      : null;
+  }
+
+  /**
+   * Updates provider tabs and active provider after API key changes.
+   */
+  private refreshProviderAvailability(): boolean {
+    const availableProviders = this.getAvailableProviders();
+    this._tabs?.setProviders(availableProviders);
+
+    if (availableProviders.includes(this._state.activeProvider)) {
+      this._tabs?.setActive(this._state.activeProvider);
+      return false;
+    }
+
+    const nextProvider = availableProviders[0];
+    if (!nextProvider) {
+      return false;
+    }
+
+    this._state.activeProvider = nextProvider;
+    this._tabs?.setActive(nextProvider);
+    return true;
+  }
+
+  /**
    * Gets the current provider instance.
    */
   private getCurrentProvider(): IStreetViewProvider | null {
@@ -253,6 +297,29 @@ export class StreetViewControl implements IControl {
       return this._googleProvider;
     }
     return this._mapillaryProvider;
+  }
+
+  /**
+   * Shows the API key entry form in the panel content area.
+   */
+  private showApiKeyPanel(): void {
+    if (!this._apiKeyInputs || !this._viewer) return;
+
+    this._apiKeyPanelVisible = true;
+    this._apiKeyInputs.getElement().hidden = false;
+    this._viewer.getElement().hidden = true;
+  }
+
+  /**
+   * Restores the imagery viewer after showing the API key form.
+   */
+  private showViewerPanel(): void {
+    if (!this._apiKeyInputs || !this._viewer) return;
+
+    this._apiKeyPanelVisible = false;
+    this._apiKeyInputs.getElement().hidden = true;
+    this._viewer.getElement().hidden = false;
+    this._tabs?.setActive(this._state.activeProvider);
   }
 
   /**
@@ -359,6 +426,60 @@ export class StreetViewControl implements IControl {
   }
 
   /**
+   * Updates Google Maps and Mapillary credentials at runtime.
+   *
+   * @param keys - New API key/token values. Omitted fields keep their current value.
+   */
+  setApiKeys(keys: { googleApiKey?: string | null; mapillaryAccessToken?: string | null }): void {
+    const googleApiKey = keys.googleApiKey === undefined
+      ? this._options.googleApiKey
+      : (keys.googleApiKey ?? '').trim();
+    const mapillaryAccessToken = keys.mapillaryAccessToken === undefined
+      ? this._options.mapillaryAccessToken
+      : (keys.mapillaryAccessToken ?? '').trim();
+
+    const googleChanged = googleApiKey !== this._options.googleApiKey;
+    const mapillaryChanged = mapillaryAccessToken !== this._options.mapillaryAccessToken;
+
+    if (!googleChanged && !mapillaryChanged) {
+      this.showViewerPanel();
+      return;
+    }
+
+    if (googleChanged) {
+      this._googleProvider?.destroy();
+      this._options.googleApiKey = googleApiKey;
+      this._googleProvider = googleApiKey ? new GoogleStreetViewProvider(googleApiKey) : null;
+    }
+
+    if (mapillaryChanged) {
+      this._mapillaryProvider?.destroy();
+      this._options.mapillaryAccessToken = mapillaryAccessToken;
+      this._mapillaryProvider = mapillaryAccessToken ? new MapillaryProvider(mapillaryAccessToken) : null;
+    }
+
+    this._apiKeyInputs?.setValues({ googleApiKey, mapillaryAccessToken });
+
+    const providerChanged = this.refreshProviderAvailability();
+    const provider = this.getCurrentProvider();
+
+    this.showViewerPanel();
+
+    if (this._state.location && provider?.isConfigured()) {
+      void this.showStreetView(this._state.location);
+    } else if (this._state.location) {
+      this.showNoData('No street view provider is configured.');
+    } else {
+      this._viewer?.showInitialState();
+    }
+
+    if (providerChanged) {
+      this.emit('providerchange');
+    }
+    this.emit('statechange');
+  }
+
+  /**
    * Shows the no data message.
    */
   private showNoData(errorMessage?: string): void {
@@ -442,8 +563,15 @@ export class StreetViewControl implements IControl {
    * @param provider - The provider to activate
    */
   setProvider(provider: ProviderType): void {
-    if (this._state.activeProvider === provider) return;
+    if (this._state.activeProvider === provider) {
+      if (this._apiKeyPanelVisible) {
+        this.showViewerPanel();
+        this._tabs?.setActive(provider);
+      }
+      return;
+    }
 
+    this.showViewerPanel();
     this._state.activeProvider = provider;
     this._tabs?.setActive(provider);
 

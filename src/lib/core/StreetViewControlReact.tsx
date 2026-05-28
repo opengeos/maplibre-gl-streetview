@@ -21,6 +21,8 @@ export function StreetViewControlReact({
   onError,
   collapsed,
   defaultProvider,
+  googleApiKey,
+  mapillaryAccessToken,
   ...options
 }: StreetViewControlReactProps): null {
   const controlRef = useRef<StreetViewControl | null>(null);
@@ -51,6 +53,8 @@ export function StreetViewControlReact({
       ...options,
       collapsed: collapsed ?? true,
       defaultProvider: defaultProvider ?? 'google',
+      googleApiKey,
+      mapillaryAccessToken,
     });
 
     controlRef.current = control;
@@ -114,6 +118,17 @@ export function StreetViewControlReact({
       control.setProvider(defaultProvider);
     }
   }, [defaultProvider]);
+
+  // Sync API keys with control
+  useEffect(() => {
+    const control = controlRef.current;
+    if (!control) return;
+
+    control.setApiKeys({
+      googleApiKey,
+      mapillaryAccessToken,
+    });
+  }, [googleApiKey, mapillaryAccessToken]);
 
   // This component renders nothing - it's a headless component
   return null;

@@ -1,0 +1,74 @@
+.streetview-api-keys {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  padding: 12px;
+  background: #fff;
+  overflow: auto;
+}
+
+.streetview-api-keys[hidden] {
+  display: none;
+}
+
+.streetview-api-key-field {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.streetview-api-key-label {
+  color: #444;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.streetview-api-key-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 5px 8px;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  background: #fff;
+  color: #222;
+  font: inherit;
+  font-size: 12px;
+  outline: none;
+}
+
+.streetview-api-key-input:focus {
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.16);
+}
+
+.streetview-api-key-input::placeholder {
+  color: #888;
+}
+
+.streetview-api-key-apply {
+  justify-self: end;
+  min-height: 28px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #1976d2;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.streetview-api-key-apply:hover {
+  background: #1565c0;
+}
+
+.streetview-api-key-apply:active {
+  background: #0d47a1;
+}
