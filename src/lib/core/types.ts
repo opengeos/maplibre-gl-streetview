@@ -81,6 +81,17 @@ export interface MarkerOptions {
 }
 
 /**
+ * Optional view direction when showing street view imagery.
+ */
+export interface ViewOptions {
+  /** Initial heading in degrees (0-360). Values outside the range are normalized. */
+  heading?: number;
+
+  /** Initial pitch in degrees (-90 to 90). Values outside the range are clamped. */
+  pitch?: number;
+}
+
+/**
  * Internal state of the street view control.
  */
 export interface StreetViewState {
@@ -169,6 +180,7 @@ export type StreetViewEvent =
   | 'providerchange'
   | 'locationchange'
   | 'headingchange'
+  | 'pitchchange'
   | 'error'
   | 'load';
 
@@ -242,8 +254,14 @@ export interface IStreetViewProvider {
   /** Find nearest imagery if none at exact location */
   findNearestImagery(lngLat: LngLatLike, maxRadius?: number): Promise<ImageryResult | null>;
 
-  /** Render the viewer into a container */
-  render(container: HTMLElement, imagery: ImageryResult): void;
+  /** Render the viewer into a container, optionally with an initial view */
+  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void;
+
+  /** Set the view heading, if supported by the provider */
+  setHeading?(heading: number): void | Promise<void>;
+
+  /** Set the view pitch, if supported by the provider */
+  setPitch?(pitch: number): void | Promise<void>;
 
   /** Clean up the viewer */
   destroy(): void;

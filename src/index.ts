@@ -14,6 +14,7 @@ export type {
   ProviderType,
   ImageryResult,
   ViewState,
+  ViewOptions,
   MarkerOptions,
   ControlPosition,
   IStreetViewProvider,
