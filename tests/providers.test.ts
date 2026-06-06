@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { LngLat } from 'maplibre-gl';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
 import { headingToBasicPoint } from '../src/lib/utils';
+import type { ImageryResult } from '../src/lib/core/types';
+
+function createGoogleImagery(): ImageryResult {
+  return {
+    id: 'pano-1',
+    location: new LngLat(-122.4194, 37.7749),
+    provider: 'google',
+    isPano: true,
+  };
+}
 
 describe('GoogleStreetViewProvider', () => {
   describe('isConfigured', () => {
@@ -58,6 +69,31 @@ describe('GoogleStreetViewProvider', () => {
     it('cleans up without error', () => {
       const provider = new GoogleStreetViewProvider('key');
       expect(() => provider.destroy()).not.toThrow();
+    });
+  });
+
+  describe('render with view', () => {
+    it('applies heading and pitch to the embed URL', () => {
+      const provider = new GoogleStreetViewProvider('test-api-key');
+      const container = document.createElement('div');
+
+      provider.render(container, createGoogleImagery(), { heading: 90, pitch: 15 });
+
+      const iframe = container.querySelector('iframe');
+      expect(iframe?.src).toContain('heading=90');
+      expect(iframe?.src).toContain('pitch=15');
+    });
+
+    it('resets to the default view when no view is given', () => {
+      const provider = new GoogleStreetViewProvider('test-api-key');
+      const container = document.createElement('div');
+
+      provider.render(container, createGoogleImagery(), { heading: 90, pitch: 15 });
+      provider.render(container, createGoogleImagery());
+
+      const iframe = container.querySelector('iframe');
+      expect(iframe?.src).not.toContain('heading');
+      expect(iframe?.src).not.toContain('pitch');
     });
   });
 });

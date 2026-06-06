@@ -102,10 +102,13 @@ export class GoogleStreetViewProvider extends BaseProvider {
    *
    * @param container - The container element
    * @param imagery - The imagery to display
+   * @param view - Optional initial view (heading/pitch)
    */
-  render(container: HTMLElement, imagery: ImageryResult): void {
+  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void {
     this._container = container;
     this._currentImagery = imagery;
+    this._heading = view?.heading ?? 0;
+    this._pitch = view?.pitch ?? 0;
 
     // Remove existing iframe
     if (this._iframe) {
