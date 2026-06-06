@@ -150,4 +150,42 @@ describe('StreetViewControl view options', () => {
     control.onRemove();
     container.remove();
   });
+
+  it('updates the view with setHeading and setPitch', async () => {
+    mockGoogleMetadata();
+    const { container, control } = createGoogleControl();
+    await control.showStreetView([-122.4194, 37.7749]);
+
+    const onHeadingChange = vi.fn();
+    const onPitchChange = vi.fn();
+    control.on('headingchange', onHeadingChange);
+    control.on('pitchchange', onPitchChange);
+
+    control.setHeading(45);
+    control.setPitch(-10);
+
+    const iframe = container.querySelector('iframe');
+    expect(iframe?.src).toContain('heading=45');
+    expect(iframe?.src).toContain('pitch=-10');
+    expect(control.getState().heading).toBe(45);
+    expect(control.getState().pitch).toBe(-10);
+    expect(onHeadingChange).toHaveBeenCalledTimes(1);
+    expect(onPitchChange).toHaveBeenCalledTimes(1);
+
+    control.onRemove();
+    container.remove();
+  });
+
+  it('ignores setHeading and setPitch when no imagery is displayed', () => {
+    const { container, control } = createGoogleControl();
+
+    control.setHeading(45);
+    control.setPitch(-10);
+
+    expect(control.getState().heading).toBe(0);
+    expect(control.getState().pitch).toBe(0);
+
+    control.onRemove();
+    container.remove();
+  });
 });

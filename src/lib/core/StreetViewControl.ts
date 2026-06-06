@@ -336,6 +336,7 @@ export class StreetViewControl implements IControl {
    * Handles heading changes from the viewer.
    */
   private handleHeadingChange(heading: number): void {
+    if (this._state.heading === heading) return;
     this._state.heading = heading;
     this._marker?.setHeading(heading);
     this.emit('headingchange');
@@ -587,6 +588,49 @@ export class StreetViewControl implements IControl {
     this._noDataMessage?.destroy();
     this._noDataMessage = null;
 
+    this.emit('statechange');
+  }
+
+  /**
+   * Sets the heading of the currently displayed street view.
+   * Best-effort: no-op when no imagery is displayed or the active
+   * provider does not support it.
+   *
+   * @param heading - The heading in degrees (0-360, normalized)
+   */
+  setHeading(heading: number): void {
+    const provider = this._viewer?.getCurrentProvider();
+    if (!provider?.setHeading || !Number.isFinite(heading)) return;
+
+    const normalized = normalizeHeading(heading);
+    void provider.setHeading(normalized);
+
+    if (this._state.heading !== normalized) {
+      this._state.heading = normalized;
+      this._marker?.setHeading(normalized);
+      this.emit('headingchange');
+    }
+    this.emit('statechange');
+  }
+
+  /**
+   * Sets the pitch of the currently displayed street view.
+   * Best-effort: no-op when no imagery is displayed or the active
+   * provider does not support it.
+   *
+   * @param pitch - The pitch in degrees (-90 to 90, clamped)
+   */
+  setPitch(pitch: number): void {
+    const provider = this._viewer?.getCurrentProvider();
+    if (!provider?.setPitch || !Number.isFinite(pitch)) return;
+
+    const clamped = clamp(pitch, -90, 90);
+    void provider.setPitch(clamped);
+
+    if (this._state.pitch !== clamped) {
+      this._state.pitch = clamped;
+      this.emit('pitchchange');
+    }
     this.emit('statechange');
   }
 
