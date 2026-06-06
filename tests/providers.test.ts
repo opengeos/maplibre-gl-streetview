@@ -211,6 +211,8 @@ describe('MapillaryProvider', () => {
 
     it('applies the requested initial heading once, when the image loads', () => {
       const provider = new MapillaryProvider('token');
+      const onHeading = vi.fn();
+      provider.onHeadingChange(onHeading);
       provider.render(document.createElement('div'), createMapillaryImagery(), { heading: 90 });
 
       const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
@@ -221,6 +223,7 @@ describe('MapillaryProvider', () => {
         image: { lngLat: { lng: -122.4, lat: 37.7 }, compassAngle: 0, cameraType: 'spherical' },
       });
       expect(viewer.setCenter).toHaveBeenCalledWith([0.75, 0.5]);
+      expect(onHeading).toHaveBeenLastCalledWith(90);
 
       viewer.setCenter.mockClear();
       imageHandler({

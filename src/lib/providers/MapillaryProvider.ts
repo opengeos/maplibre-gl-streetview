@@ -121,7 +121,8 @@ export class MapillaryProvider extends BaseProvider {
    *
    * @param container - The container element
    * @param imagery - The imagery to display
-   * @param view - Optional initial view (heading is best-effort, panoramas only)
+   * @param view - Optional initial view; only heading is applied, best-effort,
+   *   and only for 360 panoramas. Pitch is not supported by Mapillary.
    */
   render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void {
     // Clean up existing viewer (keep heading/location subscriptions)
@@ -159,27 +160,35 @@ export class MapillaryProvider extends BaseProvider {
           this.emitLocationChange(new LngLat(lngLat.lng, lngLat.lat));
         }
         // Apply the requested initial heading once (panoramas only)
+        let appliedHeading: number | undefined;
         if (this._pendingHeading !== undefined) {
           const heading = this._pendingHeading;
           this._pendingHeading = undefined;
           if (image.cameraType === 'spherical') {
             try {
               this._viewer?.setCenter(headingToBasicPoint(heading, image.compassAngle));
+              appliedHeading = heading;
             } catch (error) {
               console.error('Failed to set initial heading:', error);
             }
           }
         }
-        // Get the current view bearing after image loads
-        this._viewer?.getBearing().then((bearing) => {
-          this.emitHeadingChange(bearing);
-        }).catch(() => {
-          // Fallback to compass angle if bearing not available
-          const compassAngle = image.compassAngle;
-          if (compassAngle !== undefined) {
-            this.emitHeadingChange(compassAngle);
-          }
-        });
+        if (appliedHeading !== undefined) {
+          // Report the heading we just applied; getBearing() would still
+          // reflect the view from before setCenter took effect
+          this.emitHeadingChange(appliedHeading);
+        } else {
+          // Get the current view bearing after image loads
+          this._viewer?.getBearing().then((bearing) => {
+            this.emitHeadingChange(bearing);
+          }).catch(() => {
+            // Fallback to compass angle if bearing not available
+            const compassAngle = image.compassAngle;
+            if (compassAngle !== undefined) {
+              this.emitHeadingChange(compassAngle);
+            }
+          });
+        }
       }
     });
 
