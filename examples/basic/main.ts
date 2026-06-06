@@ -94,9 +94,10 @@ map.on('load', () => {
 
   console.log('Street view control added to map');
 
-  // Example: Show street view at a specific location programmatically
+  // Example: Show street view at a specific location programmatically,
+  // optionally with an initial heading (0-360) and pitch (-90 to 90).
   // Uncomment to test:
   // setTimeout(() => {
-  //   streetViewControl.showStreetView([-122.4194, 37.7749]);
+  //   streetViewControl.showStreetView([-122.4194, 37.7749], { heading: 90, pitch: 10 });
   // }, 2000);
 });

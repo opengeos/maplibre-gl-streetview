@@ -167,6 +167,7 @@ The control panel also includes a `Keys` tab by default, so users can enter a Go
 | `providerchange` | Provider switched |
 | `locationchange` | View location changed |
 | `headingchange` | View heading changed |
+| `pitchchange` | View pitch changed |
 | `load` | Imagery loaded |
 | `error` | Error occurred |
 
@@ -188,9 +189,26 @@ streetView.on('error', (event) => {
 | `expand()` | Expand the panel |
 | `collapse()` | Collapse the panel |
 | `setProvider(provider)` | Switch to a provider |
-| `showStreetView(lngLat)` | Show street view at location |
+| `showStreetView(lngLat, viewOptions?)` | Show street view at location, optionally with initial heading/pitch |
+| `setHeading(heading)` | Set view heading in degrees (0-360) |
+| `setPitch(pitch)` | Set view pitch in degrees (-90 to 90) |
 | `clearStreetView()` | Clear current street view |
 | `getState()` | Get current state |
+
+### Controlling Heading and Pitch
+
+```typescript
+// Show street view facing east, tilted slightly up
+streetView.showStreetView([-122.4194, 37.7749], { heading: 90, pitch: 10 });
+
+// Adjust the current view afterwards
+streetView.setHeading(180);
+streetView.setPitch(-15);
+```
+
+Heading and pitch are fully supported for Google Street View. For Mapillary,
+heading is applied best-effort to 360 panoramas and pitch is ignored. When
+`viewOptions` is omitted, the provider's default view is used.
 
 ## React Hooks
 
