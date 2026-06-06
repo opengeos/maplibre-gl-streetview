@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
-import { headingToBasicPoint } from '../src/lib/utils/geo';
+import { headingToBasicPoint } from '../src/lib/utils';
 
 describe('GoogleStreetViewProvider', () => {
   describe('isConfigured', () => {
