@@ -14,6 +14,22 @@ function createGoogleImagery(): ImageryResult {
   };
 }
 
+function createMapillaryImagery(): ImageryResult {
+  return {
+    id: 'img-1',
+    location: new LngLat(-122.4194, 37.7749),
+    provider: 'mapillary',
+    heading: 45,
+    isPano: true,
+  };
+}
+
+type MockedMapillaryViewer = {
+  on: ReturnType<typeof vi.fn>;
+  getImage: ReturnType<typeof vi.fn>;
+  setCenter: ReturnType<typeof vi.fn>;
+};
+
 describe('GoogleStreetViewProvider', () => {
   describe('isConfigured', () => {
     it('returns true when API key is provided', () => {
@@ -151,6 +167,66 @@ describe('MapillaryProvider', () => {
       provider.emitHeadingChange(90);
 
       expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setHeading', () => {
+    it('converts heading to basic coordinates for panoramas', async () => {
+      const provider = new MapillaryProvider('token');
+      provider.render(document.createElement('div'), createMapillaryImagery());
+
+      const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
+      await provider.setHeading(90);
+
+      expect(viewer.setCenter).toHaveBeenCalledTimes(1);
+      const [point] = viewer.setCenter.mock.calls[0];
+      expect(point[0]).toBeCloseTo(0.75);
+      expect(point[1]).toBe(0.5);
+    });
+
+    it('ignores non-panorama images', async () => {
+      const provider = new MapillaryProvider('token');
+      provider.render(document.createElement('div'), createMapillaryImagery());
+
+      const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
+      viewer.getImage.mockResolvedValue({ compassAngle: 0, cameraType: 'perspective' });
+
+      await provider.setHeading(90);
+
+      expect(viewer.setCenter).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('render', () => {
+    it('keeps heading subscriptions made before render', () => {
+      const provider = new MapillaryProvider('token');
+      const callback = vi.fn();
+
+      provider.onHeadingChange(callback);
+      provider.render(document.createElement('div'), createMapillaryImagery());
+
+      // render emits the initial imagery heading
+      expect(callback).toHaveBeenCalledWith(45);
+    });
+
+    it('applies the requested initial heading once, when the image loads', () => {
+      const provider = new MapillaryProvider('token');
+      provider.render(document.createElement('div'), createMapillaryImagery(), { heading: 90 });
+
+      const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
+      const imageHandler = viewer.on.mock.calls.find(([name]: [string]) => name === 'image')?.[1];
+      expect(imageHandler).toBeDefined();
+
+      imageHandler({
+        image: { lngLat: { lng: -122.4, lat: 37.7 }, compassAngle: 0, cameraType: 'spherical' },
+      });
+      expect(viewer.setCenter).toHaveBeenCalledWith([0.75, 0.5]);
+
+      viewer.setCenter.mockClear();
+      imageHandler({
+        image: { lngLat: { lng: -122.4, lat: 37.7 }, compassAngle: 0, cameraType: 'spherical' },
+      });
+      expect(viewer.setCenter).not.toHaveBeenCalled();
     });
   });
 });
