@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
+import { headingToBasicPoint } from '../src/lib/utils/geo';
 
 describe('GoogleStreetViewProvider', () => {
   describe('isConfigured', () => {
@@ -115,5 +116,27 @@ describe('MapillaryProvider', () => {
 
       expect(callback).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('headingToBasicPoint', () => {
+  it('centers on the image compass angle when heading matches', () => {
+    expect(headingToBasicPoint(0, 0)).toEqual([0.5, 0.5]);
+    expect(headingToBasicPoint(123, 123)[0]).toBeCloseTo(0.5);
+  });
+
+  it('converts headings relative to the compass angle', () => {
+    expect(headingToBasicPoint(90, 0)[0]).toBeCloseTo(0.75);
+    expect(headingToBasicPoint(270, 0)[0]).toBeCloseTo(0.25);
+    expect(headingToBasicPoint(0, 90)[0]).toBeCloseTo(0.25);
+  });
+
+  it('wraps coordinates into the [0, 1) interval', () => {
+    expect(headingToBasicPoint(350, 0)[0]).toBeCloseTo(0.4722, 3);
+    expect(headingToBasicPoint(0, 350)[0]).toBeCloseTo(0.5278, 3);
+  });
+
+  it('always centers vertically', () => {
+    expect(headingToBasicPoint(42, 7)[1]).toBe(0.5);
   });
 });
