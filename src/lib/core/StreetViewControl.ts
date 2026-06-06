@@ -8,11 +8,13 @@ import type {
   ProviderType,
   ControlPosition,
   IStreetViewProvider,
+  ViewOptions,
+  ViewState,
 } from './types';
 import { DEFAULT_OPTIONS, CSS_CLASSES } from './constants';
 import { Panel, ProviderTabs, Viewer, StreetViewMarker, NoDataMessage, ApiKeyInputs } from '../components';
 import { GoogleStreetViewProvider, MapillaryProvider } from '../providers';
-import { createElement, generateId } from '../utils/helpers';
+import { createElement, generateId, normalizeHeading, clamp } from '../utils/helpers';
 import { toLngLat } from '../utils/geo';
 
 /**
@@ -359,11 +361,32 @@ export class StreetViewControl implements IControl {
   }
 
   /**
+   * Normalizes and clamps user-supplied view options.
+   * Non-finite values are dropped.
+   */
+  private sanitizeViewOptions(viewOptions?: ViewOptions): Partial<ViewState> | undefined {
+    if (!viewOptions) return undefined;
+
+    const view: Partial<ViewState> = {};
+    if (viewOptions.heading !== undefined && Number.isFinite(viewOptions.heading)) {
+      view.heading = normalizeHeading(viewOptions.heading);
+    }
+    if (viewOptions.pitch !== undefined && Number.isFinite(viewOptions.pitch)) {
+      view.pitch = clamp(viewOptions.pitch, -90, 90);
+    }
+
+    return view.heading === undefined && view.pitch === undefined ? undefined : view;
+  }
+
+  /**
    * Shows street view imagery at a location.
    *
    * @param lngLat - The location to show
+   * @param viewOptions - Optional initial heading/pitch (falls back to the
+   *   provider's default view when omitted; best-effort for Mapillary)
    */
-  async showStreetView(lngLat: LngLat | [number, number]): Promise<void> {
+  async showStreetView(lngLat: LngLat | [number, number], viewOptions?: ViewOptions): Promise<void> {
+    const view = this.sanitizeViewOptions(viewOptions);
     const location = toLngLat(lngLat);
     const provider = this.getCurrentProvider();
 
@@ -400,16 +423,26 @@ export class StreetViewControl implements IControl {
         this._state.imagery = imagery;
         this._state.loading = false;
 
-        // Update marker to actual imagery location
+        // Seed state with the requested view
+        if (view?.heading !== undefined) {
+          this._state.heading = view.heading;
+        }
+        if (view?.pitch !== undefined) {
+          this._state.pitch = view.pitch;
+        }
+
+        // Update marker to actual imagery location; requested heading wins
+        // over the image's own compass heading
         if (this._marker && this._map) {
           this._marker.setLngLat(imagery.location);
-          if (imagery.heading !== undefined) {
-            this._marker.setHeading(imagery.heading);
+          const markerHeading = view?.heading ?? imagery.heading;
+          if (markerHeading !== undefined) {
+            this._marker.setHeading(markerHeading);
           }
         }
 
         // Display imagery
-        this._viewer?.displayImagery(provider, imagery);
+        this._viewer?.displayImagery(provider, imagery, view);
         this.emit('load');
       } else {
         this._state.loading = false;

@@ -1,6 +1,6 @@
 import type { LngLat } from 'maplibre-gl';
 import { CSS_CLASSES } from '../core/constants';
-import type { ImageryResult, IStreetViewProvider } from '../core/types';
+import type { ImageryResult, IStreetViewProvider, ViewState } from '../core/types';
 import { createElement } from '../utils/helpers';
 
 /**
@@ -132,14 +132,15 @@ export class Viewer {
    *
    * @param provider - The street view provider
    * @param imagery - The imagery to display
+   * @param view - Optional initial view (heading/pitch)
    */
-  displayImagery(provider: IStreetViewProvider, imagery: ImageryResult): void {
+  displayImagery(provider: IStreetViewProvider, imagery: ImageryResult, view?: Partial<ViewState>): void {
     this.clearContent();
 
     this._currentProvider = provider;
     provider.onHeadingChange(this._headingCallback);
     provider.onLocationChange(this._locationCallback);
-    provider.render(this._element, imagery);
+    provider.render(this._element, imagery, view);
   }
 
   /**
