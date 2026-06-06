@@ -382,8 +382,9 @@ export class StreetViewControl implements IControl {
    * Shows street view imagery at a location.
    *
    * @param lngLat - The location to show
-   * @param viewOptions - Optional initial heading/pitch (falls back to the
-   *   provider's default view when omitted; best-effort for Mapillary)
+   * @param viewOptions - Optional initial heading/pitch. Falls back to the
+   *   provider's default view when omitted. For Mapillary, heading is
+   *   best-effort (360 panoramas only) and pitch is ignored.
    */
   async showStreetView(lngLat: LngLat | [number, number], viewOptions?: ViewOptions): Promise<void> {
     const view = this.sanitizeViewOptions(viewOptions);
@@ -423,13 +424,11 @@ export class StreetViewControl implements IControl {
         this._state.imagery = imagery;
         this._state.loading = false;
 
-        // Seed state with the requested view
-        if (view?.heading !== undefined) {
-          this._state.heading = view.heading;
-        }
-        if (view?.pitch !== undefined) {
-          this._state.pitch = view.pitch;
-        }
+        // Seed state with the requested view, or reset to the provider's
+        // default starting view; providers that emit heading changes
+        // (Mapillary) will update state as the viewer loads
+        this._state.heading = view?.heading ?? 0;
+        this._state.pitch = view?.pitch ?? 0;
 
         // Update marker to actual imagery location; requested heading wins
         // over the image's own compass heading
@@ -580,6 +579,7 @@ export class StreetViewControl implements IControl {
     this._state.location = null;
     this._state.imagery = null;
     this._state.heading = 0;
+    this._state.pitch = 0;
     this._state.error = null;
 
     this._viewer?.showInitialState();

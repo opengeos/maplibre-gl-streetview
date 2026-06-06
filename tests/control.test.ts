@@ -120,6 +120,9 @@ describe('StreetViewControl view options', () => {
     mockGoogleMetadata();
     const { container, control } = createGoogleControl();
 
+    // A previous call with view options must not leak into later calls
+    await control.showStreetView([-122.4194, 37.7749], { heading: 90, pitch: 15 });
+
     await control.showStreetView([-122.4194, 37.7749]);
 
     const iframe = container.querySelector('iframe');
