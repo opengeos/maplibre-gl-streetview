@@ -192,8 +192,9 @@ export class MapillaryProvider extends BaseProvider {
       }
     });
 
-    // Emit initial heading if available
-    if (imagery.heading !== undefined) {
+    // Emit initial heading if available (skip when an explicit initial
+    // heading is pending; it is emitted once applied on the image event)
+    if (imagery.heading !== undefined && this._pendingHeading === undefined) {
       this.emitHeadingChange(imagery.heading);
     }
   }

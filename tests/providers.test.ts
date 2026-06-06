@@ -223,7 +223,9 @@ describe('MapillaryProvider', () => {
         image: { lngLat: { lng: -122.4, lat: 37.7 }, compassAngle: 0, cameraType: 'spherical' },
       });
       expect(viewer.setCenter).toHaveBeenCalledWith([0.75, 0.5]);
-      expect(onHeading).toHaveBeenLastCalledWith(90);
+      // Only the applied heading is emitted, not the image compass angle
+      expect(onHeading).toHaveBeenCalledTimes(1);
+      expect(onHeading).toHaveBeenCalledWith(90);
 
       viewer.setCenter.mockClear();
       imageHandler({
