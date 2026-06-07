@@ -17,6 +17,7 @@ export {
   calculateDistance,
   calculateBearing,
   findClosestPoint,
+  headingToBasicPoint,
 } from './geo';
 
 // API utilities

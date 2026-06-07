@@ -8,11 +8,13 @@ import type {
   ProviderType,
   ControlPosition,
   IStreetViewProvider,
+  ViewOptions,
+  ViewState,
 } from './types';
 import { DEFAULT_OPTIONS, CSS_CLASSES } from './constants';
 import { Panel, ProviderTabs, Viewer, StreetViewMarker, NoDataMessage, ApiKeyInputs } from '../components';
 import { GoogleStreetViewProvider, MapillaryProvider } from '../providers';
-import { createElement, generateId } from '../utils/helpers';
+import { createElement, generateId, normalizeHeading, clamp } from '../utils/helpers';
 import { toLngLat } from '../utils/geo';
 
 /**
@@ -334,6 +336,7 @@ export class StreetViewControl implements IControl {
    * Handles heading changes from the viewer.
    */
   private handleHeadingChange(heading: number): void {
+    if (this._state.heading === heading) return;
     this._state.heading = heading;
     this._marker?.setHeading(heading);
     this.emit('headingchange');
@@ -359,11 +362,33 @@ export class StreetViewControl implements IControl {
   }
 
   /**
+   * Normalizes and clamps user-supplied view options.
+   * Non-finite values are dropped.
+   */
+  private sanitizeViewOptions(viewOptions?: ViewOptions): Partial<ViewState> | undefined {
+    if (!viewOptions) return undefined;
+
+    const view: Partial<ViewState> = {};
+    if (viewOptions.heading !== undefined && Number.isFinite(viewOptions.heading)) {
+      view.heading = normalizeHeading(viewOptions.heading);
+    }
+    if (viewOptions.pitch !== undefined && Number.isFinite(viewOptions.pitch)) {
+      view.pitch = clamp(viewOptions.pitch, -90, 90);
+    }
+
+    return view.heading === undefined && view.pitch === undefined ? undefined : view;
+  }
+
+  /**
    * Shows street view imagery at a location.
    *
    * @param lngLat - The location to show
+   * @param viewOptions - Optional initial heading/pitch. Falls back to the
+   *   provider's default view when omitted. For Mapillary, heading is
+   *   best-effort (360 panoramas only) and pitch is ignored.
    */
-  async showStreetView(lngLat: LngLat | [number, number]): Promise<void> {
+  async showStreetView(lngLat: LngLat | [number, number], viewOptions?: ViewOptions): Promise<void> {
+    const view = this.sanitizeViewOptions(viewOptions);
     const location = toLngLat(lngLat);
     const provider = this.getCurrentProvider();
 
@@ -400,16 +425,24 @@ export class StreetViewControl implements IControl {
         this._state.imagery = imagery;
         this._state.loading = false;
 
-        // Update marker to actual imagery location
+        // Seed state with the requested view, or reset to the provider's
+        // default starting view; providers that emit heading changes
+        // (Mapillary) will update state as the viewer loads
+        this._state.heading = view?.heading ?? 0;
+        this._state.pitch = view?.pitch ?? 0;
+
+        // Update marker to actual imagery location; requested heading wins
+        // over the image's own compass heading
         if (this._marker && this._map) {
           this._marker.setLngLat(imagery.location);
-          if (imagery.heading !== undefined) {
-            this._marker.setHeading(imagery.heading);
+          const markerHeading = view?.heading ?? imagery.heading;
+          if (markerHeading !== undefined) {
+            this._marker.setHeading(markerHeading);
           }
         }
 
         // Display imagery
-        this._viewer?.displayImagery(provider, imagery);
+        this._viewer?.displayImagery(provider, imagery, view);
         this.emit('load');
       } else {
         this._state.loading = false;
@@ -547,6 +580,7 @@ export class StreetViewControl implements IControl {
     this._state.location = null;
     this._state.imagery = null;
     this._state.heading = 0;
+    this._state.pitch = 0;
     this._state.error = null;
 
     this._viewer?.showInitialState();
@@ -554,6 +588,49 @@ export class StreetViewControl implements IControl {
     this._noDataMessage?.destroy();
     this._noDataMessage = null;
 
+    this.emit('statechange');
+  }
+
+  /**
+   * Sets the heading of the currently displayed street view.
+   * Best-effort: no-op when no imagery is displayed or the active
+   * provider does not support it.
+   *
+   * @param heading - The heading in degrees (0-360, normalized)
+   */
+  setHeading(heading: number): void {
+    const provider = this._viewer?.getCurrentProvider();
+    if (!provider?.setHeading || !Number.isFinite(heading)) return;
+
+    const normalized = normalizeHeading(heading);
+    void provider.setHeading(normalized);
+
+    if (this._state.heading !== normalized) {
+      this._state.heading = normalized;
+      this._marker?.setHeading(normalized);
+      this.emit('headingchange');
+    }
+    this.emit('statechange');
+  }
+
+  /**
+   * Sets the pitch of the currently displayed street view.
+   * Best-effort: no-op when no imagery is displayed or the active
+   * provider does not support it.
+   *
+   * @param pitch - The pitch in degrees (-90 to 90, clamped)
+   */
+  setPitch(pitch: number): void {
+    const provider = this._viewer?.getCurrentProvider();
+    if (!provider?.setPitch || !Number.isFinite(pitch)) return;
+
+    const clamped = clamp(pitch, -90, 90);
+    void provider.setPitch(clamped);
+
+    if (this._state.pitch !== clamped) {
+      this._state.pitch = clamped;
+      this.emit('pitchchange');
+    }
     this.emit('statechange');
   }
 

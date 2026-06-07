@@ -3,7 +3,7 @@ import { Viewer as MapillaryViewer } from 'mapillary-js';
 import { BaseProvider } from './BaseProvider';
 import type { ImageryResult, ViewState, ProviderType } from '../core/types';
 import { MAPILLARY_API, MAPILLARY_IMAGE_FIELDS } from '../core/constants';
-import { toLngLat, createBbox, bboxToString, findClosestPoint } from '../utils/geo';
+import { toLngLat, createBbox, bboxToString, findClosestPoint, headingToBasicPoint } from '../utils/geo';
 import { buildUrl, fetchJson, type MapillaryImageResponse, type MapillaryImage } from '../utils/api';
 
 /**
@@ -17,6 +17,7 @@ export class MapillaryProvider extends BaseProvider {
   private _accessToken: string;
   private _viewer: MapillaryViewer | null = null;
   private _viewerContainer: HTMLElement | null = null;
+  private _pendingHeading: number | undefined;
 
   /**
    * Creates a new Mapillary provider.
@@ -120,12 +121,15 @@ export class MapillaryProvider extends BaseProvider {
    *
    * @param container - The container element
    * @param imagery - The imagery to display
+   * @param view - Optional initial view; only heading is applied, best-effort,
+   *   and only for 360 panoramas. Pitch is not supported by Mapillary.
    */
-  render(container: HTMLElement, imagery: ImageryResult): void {
-    this._container = container;
+  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void {
+    // Clean up existing viewer (keep heading/location subscriptions)
+    this.cleanupViewer();
 
-    // Clean up existing viewer
-    this.destroy();
+    this._container = container;
+    this._pendingHeading = view?.heading;
 
     // Create viewer container
     this._viewerContainer = document.createElement('div');
@@ -155,21 +159,42 @@ export class MapillaryProvider extends BaseProvider {
         if (lngLat) {
           this.emitLocationChange(new LngLat(lngLat.lng, lngLat.lat));
         }
-        // Get the current view bearing after image loads
-        this._viewer?.getBearing().then((bearing) => {
-          this.emitHeadingChange(bearing);
-        }).catch(() => {
-          // Fallback to compass angle if bearing not available
-          const compassAngle = image.compassAngle;
-          if (compassAngle !== undefined) {
-            this.emitHeadingChange(compassAngle);
+        // Apply the requested initial heading once (panoramas only)
+        let appliedHeading: number | undefined;
+        if (this._pendingHeading !== undefined) {
+          const heading = this._pendingHeading;
+          this._pendingHeading = undefined;
+          if (image.cameraType === 'spherical') {
+            try {
+              this._viewer?.setCenter(headingToBasicPoint(heading, image.compassAngle));
+              appliedHeading = heading;
+            } catch (error) {
+              console.error('Failed to set initial heading:', error);
+            }
           }
-        });
+        }
+        if (appliedHeading !== undefined) {
+          // Report the heading we just applied; getBearing() would still
+          // reflect the view from before setCenter took effect
+          this.emitHeadingChange(appliedHeading);
+        } else {
+          // Get the current view bearing after image loads
+          this._viewer?.getBearing().then((bearing) => {
+            this.emitHeadingChange(bearing);
+          }).catch(() => {
+            // Fallback to compass angle if bearing not available
+            const compassAngle = image.compassAngle;
+            if (compassAngle !== undefined) {
+              this.emitHeadingChange(compassAngle);
+            }
+          });
+        }
       }
     });
 
-    // Emit initial heading if available
-    if (imagery.heading !== undefined) {
+    // Emit initial heading if available (skip when an explicit initial
+    // heading is pending; it is emitted once applied on the image event)
+    if (imagery.heading !== undefined && this._pendingHeading === undefined) {
       this.emitHeadingChange(imagery.heading);
     }
   }
@@ -190,9 +215,9 @@ export class MapillaryProvider extends BaseProvider {
   }
 
   /**
-   * Clean up the MapillaryJS viewer.
+   * Remove the MapillaryJS viewer and its container, keeping subscriptions.
    */
-  destroy(): void {
+  private cleanupViewer(): void {
     if (this._viewer) {
       this._viewer.remove();
       this._viewer = null;
@@ -202,6 +227,14 @@ export class MapillaryProvider extends BaseProvider {
       this._viewerContainer = null;
     }
     this._container = null;
+    this._pendingHeading = undefined;
+  }
+
+  /**
+   * Clean up the MapillaryJS viewer.
+   */
+  destroy(): void {
+    this.cleanupViewer();
     this._headingCallbacks.clear();
   }
 
@@ -221,7 +254,7 @@ export class MapillaryProvider extends BaseProvider {
   }
 
   /**
-   * Set the view bearing/heading.
+   * Set the view bearing/heading. Best-effort: applies to 360 panoramas only.
    *
    * @param heading - The heading (0-360)
    */
@@ -229,7 +262,9 @@ export class MapillaryProvider extends BaseProvider {
     if (!this._viewer) return;
 
     try {
-      await this._viewer.setCenter([heading, 0]);
+      const image = await this._viewer.getImage();
+      if (image.cameraType !== 'spherical') return;
+      this._viewer.setCenter(headingToBasicPoint(heading, image.compassAngle));
     } catch (error) {
       console.error('Failed to set heading:', error);
     }

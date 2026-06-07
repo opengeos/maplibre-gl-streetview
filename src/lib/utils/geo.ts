@@ -141,3 +141,20 @@ export function findClosestPoint<T extends { location: LngLat }>(
 
   return closest;
 }
+
+/**
+ * Converts a compass heading to mapillary-js basic image coordinates.
+ *
+ * Basic coordinates are 2D coordinates on the [0, 1] interval with the
+ * origin at the top left corner of the original image. For a 360 panorama
+ * the horizontal axis spans the full 360 degrees and the horizontal center
+ * (x = 0.5) points at the image's compass angle.
+ *
+ * @param heading - The desired compass heading in degrees
+ * @param compassAngle - The compass angle of the image in degrees
+ * @returns Basic [x, y] coordinates centering the view on the heading
+ */
+export function headingToBasicPoint(heading: number, compassAngle: number): [number, number] {
+  const x = 0.5 + (heading - compassAngle) / 360;
+  return [((x % 1) + 1) % 1, 0.5];
+}
