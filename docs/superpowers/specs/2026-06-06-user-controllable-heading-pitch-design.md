@@ -6,7 +6,7 @@
 ## Goal
 
 Let library users control the initial view direction (heading and pitch) of street-level
-imagery, and adjust it programmatically afterwards. When not specified, behavior is
+imagery, and adjust it programmatically afterward. When not specified, behavior is
 unchanged from today (provider default view).
 
 ## Scope
@@ -25,9 +25,9 @@ Out of scope: constructor-level default heading/pitch options, new React wrapper
 ```ts
 // core/types.ts (new exported type)
 export interface ViewOptions {
-  /** Initial heading in degrees (0-360). Normalized via modulo. */
+  /** Initial heading in degrees (0-360). Normalized to [0, 360) via ((heading % 360) + 360) % 360. */
   heading?: number;
-  /** Initial pitch in degrees (-90 to 90). Clamped. */
+  /** Initial pitch in degrees (-90 to 90). Clamped via Math.max(-90, Math.min(90, pitch)). */
   pitch?: number;
 }
 
@@ -41,6 +41,10 @@ setPitch(pitch: number): void;     // adjust current view; updates state; emits 
 - Heading is normalized to `[0, 360)`; pitch is clamped to `[-90, 90]`. Non-finite values
   are ignored (treated as absent). Sanitization never throws.
 - `setHeading()`/`setPitch()` are no-ops when no imagery is currently displayed.
+- `'headingchange'`/`'pitchchange'` are emitted only when the value actually changes;
+  `'statechange'` is emitted on every setter call because the provider view is
+  re-asserted even for equal values (the Google embed view can drift without the
+  control knowing).
 - A new `'pitchchange'` event type is added to `StreetViewEvent` for symmetry with the
   existing `'headingchange'` event.
 - The React wrapper gains no new props; the setters are reachable via the control
@@ -48,7 +52,7 @@ setPitch(pitch: number): void;     // adjust current view; updates state; emits 
 
 ## Data Flow
 
-```
+```text
 showStreetView(lngLat, viewOptions)
   -> sanitize viewOptions; seed state.heading / state.pitch when provided
   -> Viewer.displayImagery(provider, imagery, view?)

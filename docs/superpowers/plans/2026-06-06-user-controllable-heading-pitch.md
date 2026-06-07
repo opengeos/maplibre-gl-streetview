@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let users pass optional heading/pitch to `showStreetView()` and adjust the view afterwards via new `setHeading()`/`setPitch()` methods on `StreetViewControl` (Discussion #11).
+**Goal:** Let users pass optional heading/pitch to `showStreetView()` and adjust the view afterward via new `setHeading()`/`setPitch()` methods on `StreetViewControl` (Discussion #11).
 
 **Architecture:** A sanitized `Partial<ViewState>` flows `showStreetView(lngLat, viewOptions)` → `Viewer.displayImagery(provider, imagery, view)` → `provider.render(container, imagery, view)`. Google applies heading/pitch to the Embed API URL; Mapillary applies heading best-effort to 360 panoramas by converting compass degrees to mapillary-js basic image coordinates. The control's setters delegate to optional provider setters and keep state/events in sync.
 
@@ -974,7 +974,7 @@ Add directly below the Methods table:
 // Show street view facing east, tilted slightly up
 streetView.showStreetView([-122.4194, 37.7749], { heading: 90, pitch: 10 });
 
-// Adjust the current view afterwards
+// Adjust the current view afterward
 streetView.setHeading(180);
 streetView.setPitch(-15);
 ```

@@ -201,7 +201,7 @@ streetView.on('error', (event) => {
 // Show street view facing east, tilted slightly up
 streetView.showStreetView([-122.4194, 37.7749], { heading: 90, pitch: 10 });
 
-// Adjust the current view afterwards
+// Adjust the current view afterward
 streetView.setHeading(180);
 streetView.setPitch(-15);
 ```
