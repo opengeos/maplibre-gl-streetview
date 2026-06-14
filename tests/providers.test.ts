@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { LngLat } from 'maplibre-gl';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
