@@ -104,7 +104,10 @@ export class GoogleStreetViewProvider extends BaseProvider {
    * @param imagery - The imagery to display
    * @param view - Optional initial view (heading/pitch)
    */
-  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void {
+  // Returns Promise<void> for parity with the provider interface; Google's
+  // iframe needs no async loading, so this resolves immediately (kept non-async
+  // to avoid an await-less async function).
+  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): Promise<void> {
     this._container = container;
     this._currentImagery = imagery;
     this._heading = view?.heading ?? 0;
@@ -128,6 +131,8 @@ export class GoogleStreetViewProvider extends BaseProvider {
     this.updateIframeSrc();
 
     container.appendChild(this._iframe);
+
+    return Promise.resolve();
   }
 
   /**

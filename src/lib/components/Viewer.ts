@@ -140,7 +140,9 @@ export class Viewer {
     this._currentProvider = provider;
     provider.onHeadingChange(this._headingCallback);
     provider.onLocationChange(this._locationCallback);
-    provider.render(this._element, imagery, view);
+    // Fire-and-forget: providers that load their renderer on demand (Mapillary)
+    // mount asynchronously; the viewer surfaces imagery as soon as it is ready.
+    void provider.render(this._element, imagery, view);
   }
 
   /**

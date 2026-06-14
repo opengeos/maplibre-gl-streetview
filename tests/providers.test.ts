@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { LngLat } from 'maplibre-gl';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
@@ -173,7 +173,7 @@ describe('MapillaryProvider', () => {
   describe('setHeading', () => {
     it('converts heading to basic coordinates for panoramas', async () => {
       const provider = new MapillaryProvider('token');
-      provider.render(document.createElement('div'), createMapillaryImagery());
+      await provider.render(document.createElement('div'), createMapillaryImagery());
 
       const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
       await provider.setHeading(90);
@@ -186,7 +186,7 @@ describe('MapillaryProvider', () => {
 
     it('ignores non-panorama images', async () => {
       const provider = new MapillaryProvider('token');
-      provider.render(document.createElement('div'), createMapillaryImagery());
+      await provider.render(document.createElement('div'), createMapillaryImagery());
 
       const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
       viewer.getImage.mockResolvedValue({ compassAngle: 0, cameraType: 'perspective' });
@@ -198,22 +198,22 @@ describe('MapillaryProvider', () => {
   });
 
   describe('render', () => {
-    it('keeps heading subscriptions made before render', () => {
+    it('keeps heading subscriptions made before render', async () => {
       const provider = new MapillaryProvider('token');
       const callback = vi.fn();
 
       provider.onHeadingChange(callback);
-      provider.render(document.createElement('div'), createMapillaryImagery());
+      await provider.render(document.createElement('div'), createMapillaryImagery());
 
       // render emits the initial imagery heading
       expect(callback).toHaveBeenCalledWith(45);
     });
 
-    it('applies the requested initial heading once, when the image loads', () => {
+    it('applies the requested initial heading once, when the image loads', async () => {
       const provider = new MapillaryProvider('token');
       const onHeading = vi.fn();
       provider.onHeadingChange(onHeading);
-      provider.render(document.createElement('div'), createMapillaryImagery(), { heading: 90 });
+      await provider.render(document.createElement('div'), createMapillaryImagery(), { heading: 90 });
 
       const viewer = provider.getViewer() as unknown as MockedMapillaryViewer;
       const imageHandler = viewer.on.mock.calls.find(([name]: [string]) => name === 'image')?.[1];

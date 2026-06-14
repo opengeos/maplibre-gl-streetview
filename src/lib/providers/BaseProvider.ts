@@ -44,7 +44,7 @@ export abstract class BaseProvider implements IStreetViewProvider {
    * @param imagery - The imagery to display
    * @param view - Optional initial view (heading/pitch)
    */
-  abstract render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void;
+  abstract render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): Promise<void>;
 
   /**
    * Clean up the viewer and release resources.
