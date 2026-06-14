@@ -254,8 +254,14 @@ export interface IStreetViewProvider {
   /** Find nearest imagery if none at exact location */
   findNearestImagery(lngLat: LngLatLike, maxRadius?: number): Promise<ImageryResult | null>;
 
-  /** Render the viewer into a container, optionally with an initial view */
-  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void;
+  /**
+   * Render the viewer into a container, optionally with an initial view.
+   *
+   * Returns a promise so providers that load their renderer on demand (e.g.
+   * Mapillary dynamically imports mapillary-js) can signal when the viewer is
+   * actually mounted; callers that do not need to wait may ignore it.
+   */
+  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): Promise<void>;
 
   /** Set the view heading, if supported by the provider */
   setHeading?(heading: number): void | Promise<void>;

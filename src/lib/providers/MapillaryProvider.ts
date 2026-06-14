@@ -1,5 +1,5 @@
 import { LngLat, type LngLatLike } from 'maplibre-gl';
-import { Viewer as MapillaryViewer } from 'mapillary-js';
+import type { Viewer as MapillaryViewer } from 'mapillary-js';
 import { BaseProvider } from './BaseProvider';
 import type { ImageryResult, ViewState, ProviderType } from '../core/types';
 import { MAPILLARY_API, MAPILLARY_IMAGE_FIELDS } from '../core/constants';
@@ -18,6 +18,11 @@ export class MapillaryProvider extends BaseProvider {
   private _viewer: MapillaryViewer | null = null;
   private _viewerContainer: HTMLElement | null = null;
   private _pendingHeading: number | undefined;
+  /**
+   * Bumped on every cleanup so an in-flight async `render()` can detect that a
+   * newer render (or a teardown) superseded it while mapillary-js was loading.
+   */
+  private _renderToken = 0;
 
   /**
    * Creates a new Mapillary provider.
@@ -124,9 +129,10 @@ export class MapillaryProvider extends BaseProvider {
    * @param view - Optional initial view; only heading is applied, best-effort,
    *   and only for 360 panoramas. Pitch is not supported by Mapillary.
    */
-  render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): void {
+  async render(container: HTMLElement, imagery: ImageryResult, view?: Partial<ViewState>): Promise<void> {
     // Clean up existing viewer (keep heading/location subscriptions)
     this.cleanupViewer();
+    const renderToken = this._renderToken;
 
     this._container = container;
     this._pendingHeading = view?.heading;
@@ -138,8 +144,29 @@ export class MapillaryProvider extends BaseProvider {
     this._viewerContainer.style.height = '100%';
     container.appendChild(this._viewerContainer);
 
+    // Load MapillaryJS on demand. The viewer is the only thing in this package
+    // that needs the (heavy) mapillary-js bundle, so it is imported dynamically
+    // here instead of at module load. A static import would force every consumer
+    // to ship mapillary-js in its initial/boot bundle even when street view is
+    // never opened; the dynamic import lets bundlers split it into a chunk
+    // fetched only on first use.
+    let Viewer: typeof import('mapillary-js').Viewer;
+    try {
+      ({ Viewer } = await import('mapillary-js'));
+    } catch (error) {
+      console.error('Failed to load MapillaryJS:', error);
+      return;
+    }
+
+    // A newer render() — or a destroy()/cleanup — ran while mapillary-js was
+    // loading. Abandon this stale mount so we never attach to a removed
+    // container or clobber the current viewer.
+    if (renderToken !== this._renderToken || !this._viewerContainer) {
+      return;
+    }
+
     // Initialize MapillaryJS viewer
-    this._viewer = new MapillaryViewer({
+    this._viewer = new Viewer({
       accessToken: this._accessToken,
       container: this._viewerContainer,
       imageId: imagery.id,
@@ -218,6 +245,9 @@ export class MapillaryProvider extends BaseProvider {
    * Remove the MapillaryJS viewer and its container, keeping subscriptions.
    */
   private cleanupViewer(): void {
+    // Invalidate any in-flight async render() so a pending mapillary-js load
+    // does not create a viewer after teardown.
+    this._renderToken++;
     if (this._viewer) {
       this._viewer.remove();
       this._viewer = null;
