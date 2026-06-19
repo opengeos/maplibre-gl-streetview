@@ -1,9 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { LngLat } from 'maplibre-gl';
 import { GoogleStreetViewProvider } from '../src/lib/providers/GoogleStreetViewProvider';
 import { MapillaryProvider } from '../src/lib/providers/MapillaryProvider';
+import { StreetViewAuthError } from '../src/lib/core/errors';
 import { headingToBasicPoint } from '../src/lib/utils';
 import type { ImageryResult } from '../src/lib/core/types';
+
+const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>;
+
+/** Builds a minimal Response-like object for the fetch mock. */
+function jsonResponse(status: number, body: unknown): Response {
+  const text = typeof body === 'string' ? body : JSON.stringify(body);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    text: () => Promise.resolve(text),
+    json: () => Promise.resolve(typeof body === 'string' ? JSON.parse(body) : body),
+  } as unknown as Response;
+}
 
 function createGoogleImagery(): ImageryResult {
   return {
@@ -29,6 +43,10 @@ type MockedMapillaryViewer = {
   getImage: ReturnType<typeof vi.fn>;
   setCenter: ReturnType<typeof vi.fn>;
 };
+
+beforeEach(() => {
+  fetchMock.mockReset();
+});
 
 describe('GoogleStreetViewProvider', () => {
   describe('isConfigured', () => {
@@ -78,6 +96,26 @@ describe('GoogleStreetViewProvider', () => {
 
       expect(state).toHaveProperty('heading');
       expect(state).toHaveProperty('pitch');
+    });
+  });
+
+  describe('queryImagery error handling', () => {
+    it('throws an auth error when the key is rejected (REQUEST_DENIED)', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(200, { status: 'REQUEST_DENIED', error_message: 'The provided API key is invalid.' }),
+      );
+      const provider = new GoogleStreetViewProvider('bad-key');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).rejects.toBeInstanceOf(
+        StreetViewAuthError,
+      );
+    });
+
+    it('returns null (no coverage) for ZERO_RESULTS', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { status: 'ZERO_RESULTS' }));
+      const provider = new GoogleStreetViewProvider('good-key');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).resolves.toBeNull();
     });
   });
 
@@ -139,6 +177,48 @@ describe('MapillaryProvider', () => {
     it('cleans up without error', () => {
       const provider = new MapillaryProvider('token');
       expect(() => provider.destroy()).not.toThrow();
+    });
+  });
+
+  describe('queryImagery error handling', () => {
+    it('throws an auth error for a rejected token (HTTP 400 OAuthException)', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(400, {
+          error: { message: 'Error validating application', type: 'OAuthException', code: 190 },
+        }),
+      );
+      const provider = new MapillaryProvider('bad-token');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).rejects.toBeInstanceOf(
+        StreetViewAuthError,
+      );
+    });
+
+    it('throws an auth error for HTTP 401', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(401, { error: { message: 'Unauthorized' } }));
+      const provider = new MapillaryProvider('bad-token');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).rejects.toBeInstanceOf(
+        StreetViewAuthError,
+      );
+    });
+
+    it('returns null (no coverage) when the API returns an empty result set', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { data: [] }));
+      const provider = new MapillaryProvider('good-token');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).resolves.toBeNull();
+    });
+
+    it('returns null (no coverage) for a transient 500, rather than throwing', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(500, {
+          error: { message: 'Service temporarily unavailable', type: 'MLYApiException', is_transient: true },
+        }),
+      );
+      const provider = new MapillaryProvider('good-token');
+
+      await expect(provider.queryImagery({ lng: 2.34, lat: 48.85 })).resolves.toBeNull();
     });
   });
 
