@@ -4,6 +4,7 @@ import type { ImageryResult, ViewState, ProviderType } from '../core/types';
 import { GOOGLE_API } from '../core/constants';
 import { toLngLat } from '../utils/geo';
 import { buildUrl, fetchJson, type GoogleStreetViewMetadata } from '../utils/api';
+import { StreetViewAuthError, isApiAuthError } from '../core/errors';
 
 /**
  * Google Street View provider using the Embed API.
@@ -70,8 +71,20 @@ export class GoogleStreetViewProvider extends BaseProvider {
         };
       }
 
+      // REQUEST_DENIED means the API key was rejected (or the request was not
+      // authorized) rather than an absence of imagery, so surface it as an auth
+      // error instead of "no coverage" (issue #563). The metadata endpoint
+      // returns HTTP 200 for this case, so it must be checked explicitly.
+      if (metadata.status === 'REQUEST_DENIED') {
+        throw new StreetViewAuthError('google', undefined, metadata.error_message);
+      }
+
       return null;
     } catch (error) {
+      if (error instanceof StreetViewAuthError) throw error;
+      if (isApiAuthError(error)) {
+        throw new StreetViewAuthError('google', error.status, error.message);
+      }
       console.error('Google Street View query failed:', error);
       return null;
     }

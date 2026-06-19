@@ -5,6 +5,7 @@ import type { ImageryResult, ViewState, ProviderType } from '../core/types';
 import { MAPILLARY_API, MAPILLARY_IMAGE_FIELDS } from '../core/constants';
 import { toLngLat, createBbox, bboxToString, findClosestPoint, headingToBasicPoint } from '../utils/geo';
 import { buildUrl, fetchJson, type MapillaryImageResponse, type MapillaryImage } from '../utils/api';
+import { StreetViewAuthError, isApiAuthError } from '../core/errors';
 
 /**
  * Mapillary provider using the MapillaryJS viewer.
@@ -79,6 +80,12 @@ export class MapillaryProvider extends BaseProvider {
 
       return findClosestPoint(point, imageryResults);
     } catch (error) {
+      // A rejected access token must surface as an auth error, not as "no
+      // coverage" (issue #563). Other failures (transient 5xx, network) keep the
+      // previous behaviour and fall back to a no-imagery result.
+      if (isApiAuthError(error)) {
+        throw new StreetViewAuthError('mapillary', error.status, error.message);
+      }
       console.error('Mapillary query failed:', error);
       return null;
     }

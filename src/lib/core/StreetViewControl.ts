@@ -12,6 +12,7 @@ import type {
   ViewState,
 } from './types';
 import { DEFAULT_OPTIONS, CSS_CLASSES } from './constants';
+import { StreetViewAuthError } from './errors';
 import { Panel, ProviderTabs, Viewer, StreetViewMarker, NoDataMessage, ApiKeyInputs } from '../components';
 import { GoogleStreetViewProvider, MapillaryProvider } from '../providers';
 import { createElement, generateId, normalizeHeading, clamp } from '../utils/helpers';
@@ -177,6 +178,13 @@ export class StreetViewControl implements IControl {
       this._marker = new StreetViewMarker(this._options.markerOptions);
     }
 
+    // Replace the viewer's default click prompt with a setup card when no
+    // provider is configured yet, so the panel never invites a click that is
+    // guaranteed to fail (issue #562).
+    if (!this.hasConfiguredProvider()) {
+      this.showSetupRequired();
+    }
+
     return this._container;
   }
 
@@ -325,10 +333,107 @@ export class StreetViewControl implements IControl {
   }
 
   /**
+   * Whether at least one provider has usable credentials.
+   */
+  private hasConfiguredProvider(): boolean {
+    return this.getAvailableProviders().length > 0;
+  }
+
+  /**
+   * Shows the idle viewer state: the click-to-view prompt when a provider is
+   * configured, otherwise a setup card guiding the user to add credentials.
+   */
+  private renderIdleState(): void {
+    if (this.hasConfiguredProvider()) {
+      this._noDataMessage?.destroy();
+      this._noDataMessage = null;
+      this._viewer?.showInitialState();
+    } else {
+      this.showSetupRequired();
+    }
+  }
+
+  /**
+   * Shows a setup-required card prompting the user to add an API key/token
+   * before clicking the map. Blocks the premature call-to-action that would
+   * otherwise lead to a dead-end error (issue #562).
+   */
+  private showSetupRequired(): void {
+    if (!this._viewer) return;
+
+    this._viewer.clearContent();
+    this._noDataMessage?.destroy();
+    this._noDataMessage = new NoDataMessage({
+      provider: this._state.activeProvider,
+      showSearchButton: false,
+    });
+
+    const canEditKeys = this._options.showApiKeyInputs;
+    this._noDataMessage.showSetupRequired(
+      'A Google Maps API key or Mapillary access token is required to load street-level imagery.',
+      canEditKeys
+        ? { label: 'Add API key', onAction: () => this.openApiKeyPanel() }
+        : undefined,
+    );
+
+    this._viewer.getElement().appendChild(this._noDataMessage.getElement());
+  }
+
+  /**
+   * Shows an authentication-failure card when a provider rejects the configured
+   * credentials, with a shortcut to the Keys panel (issues #562 and #563).
+   */
+  private showAuthError(error: StreetViewAuthError): void {
+    if (!this._viewer) return;
+
+    this._viewer.clearContent();
+    this._noDataMessage?.destroy();
+    this._noDataMessage = new NoDataMessage({
+      provider: error.provider,
+      showSearchButton: false,
+    });
+
+    const providerName = error.provider === 'mapillary' ? 'Mapillary' : 'Google';
+    const credential = error.provider === 'mapillary' ? 'access token' : 'API key';
+    const statusText = error.status ? ` (HTTP ${error.status})` : '';
+    const canEditKeys = this._options.showApiKeyInputs;
+    const message = canEditKeys
+      ? `Your ${providerName} ${credential} was rejected${statusText}. Open the Keys tab to update it.`
+      : `Your ${providerName} ${credential} was rejected${statusText}. Check your credentials and try again.`;
+
+    this._noDataMessage.showAuthError(
+      message,
+      canEditKeys
+        ? { label: 'Open Keys', onAction: () => this.openApiKeyPanel() }
+        : undefined,
+    );
+
+    this._viewer.getElement().appendChild(this._noDataMessage.getElement());
+  }
+
+  /**
+   * Opens the API key entry panel and marks the Keys tab active.
+   */
+  private openApiKeyPanel(): void {
+    if (!this._options.showApiKeyInputs) return;
+    this._tabs?.setApiKeysActive();
+    this.showApiKeyPanel();
+  }
+
+  /**
    * Handles map click events.
    */
   private handleMapClick(e: MapMouseEvent): void {
     if (this._state.collapsed) return;
+    // Don't react while the user is editing API keys.
+    if (this._apiKeyPanelVisible) return;
+    // Guard the premature call-to-action: when no provider is configured, guide
+    // the user to add credentials instead of running a request that will fail
+    // (issue #562).
+    if (!this.hasConfiguredProvider()) {
+      this.showSetupRequired();
+      return;
+    }
     this.showStreetView(e.lngLat);
   }
 
@@ -393,7 +498,7 @@ export class StreetViewControl implements IControl {
     const provider = this.getCurrentProvider();
 
     if (!provider) {
-      this.showNoData('No street view provider is configured.');
+      this.showSetupRequired();
       return;
     }
 
@@ -450,8 +555,15 @@ export class StreetViewControl implements IControl {
       }
     } catch (error) {
       this._state.loading = false;
-      this._state.error = error instanceof Error ? error.message : 'Unknown error';
-      this.showNoData(this._state.error);
+      if (error instanceof StreetViewAuthError) {
+        // A rejected credential is not a lack of coverage; show a dedicated
+        // authentication error with a path to fix the key (issues #562, #563).
+        this._state.error = error.message;
+        this.showAuthError(error);
+      } else {
+        this._state.error = error instanceof Error ? error.message : 'Unknown error';
+        this.showNoData(this._state.error);
+      }
       this.emit('error', error instanceof Error ? error : new Error(String(error)));
     }
 
@@ -500,10 +612,10 @@ export class StreetViewControl implements IControl {
 
     if (this._state.location && provider?.isConfigured()) {
       void this.showStreetView(this._state.location);
-    } else if (this._state.location) {
-      this.showNoData('No street view provider is configured.');
+    } else if (!this.hasConfiguredProvider()) {
+      this.showSetupRequired();
     } else {
-      this._viewer?.showInitialState();
+      this.renderIdleState();
     }
 
     if (providerChanged) {
@@ -567,7 +679,12 @@ export class StreetViewControl implements IControl {
         this._noDataMessage?.showNotFound();
       }
     } catch (error) {
-      this._noDataMessage?.showError(error instanceof Error ? error.message : 'Search failed');
+      if (error instanceof StreetViewAuthError) {
+        this.showAuthError(error);
+        this.emit('error', error);
+      } else {
+        this._noDataMessage?.showError(error instanceof Error ? error.message : 'Search failed');
+      }
     }
 
     this.emit('statechange');
@@ -583,10 +700,10 @@ export class StreetViewControl implements IControl {
     this._state.pitch = 0;
     this._state.error = null;
 
-    this._viewer?.showInitialState();
     this._marker?.remove();
     this._noDataMessage?.destroy();
     this._noDataMessage = null;
+    this.renderIdleState();
 
     this.emit('statechange');
   }
@@ -656,7 +773,7 @@ export class StreetViewControl implements IControl {
     if (this._state.location) {
       this.showStreetView(this._state.location);
     } else {
-      this._viewer?.showInitialState();
+      this.renderIdleState();
     }
 
     this.emit('providerchange');

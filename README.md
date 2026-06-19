@@ -181,6 +181,20 @@ streetView.on('error', (event) => {
 });
 ```
 
+When a provider rejects the configured credentials, the panel shows a dedicated
+"Authentication failed" message (rather than "no coverage"), and the `error`
+event carries a `StreetViewAuthError`:
+
+```typescript
+import { StreetViewAuthError } from 'maplibre-gl-streetview';
+
+streetView.on('error', (event) => {
+  if (event.error instanceof StreetViewAuthError) {
+    console.warn(`Check your ${event.error.provider} credentials.`);
+  }
+});
+```
+
 ## Methods
 
 | Method | Description |

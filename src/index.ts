@@ -20,6 +20,10 @@ export type {
   IStreetViewProvider,
 } from './lib/core/types';
 
+// Error exports
+export { StreetViewAuthError, isApiAuthError } from './lib/core/errors';
+export { ApiError } from './lib/utils/api';
+
 // Provider exports
 export { GoogleStreetViewProvider, MapillaryProvider } from './lib/providers';
 
