@@ -148,6 +148,7 @@ The control panel also includes a `Keys` tab by default, so users can enter a Go
 | `showMarker` | `boolean` | `true` | Show marker at view location |
 | `maxSearchRadius` | `number` | `100` | Max search radius for nearest imagery (meters) |
 | `markerOptions` | `MarkerOptions` | - | Customize marker appearance |
+| `createMarker` | `CreateStreetViewMarker` | maplibre-gl's `Marker` | Build the location marker with another engine's marker class |
 
 ### MarkerOptions
 
@@ -156,6 +157,30 @@ The control panel also includes a `Keys` tab by default, so users can enter a Go
 | `color` | `string` | `'#ff5722'` | Marker dot color |
 | `showDirection` | `boolean` | `true` | Show direction indicator |
 | `directionColor` | `string` | `'#1976d2'` | Direction arrow color |
+
+### Running on Mapbox GL JS
+
+The control is written against the Style Spec surface both engines share, with
+one exception: the location marker. MapLibre's `Marker` reads `map._camera.transform`
+on every move, which a `mapbox-gl` map does not have, so it throws there on the
+first map click. Pass `createMarker` to place the control's own marker element
+with Mapbox's class instead:
+
+```javascript
+import mapboxgl from 'mapbox-gl';
+
+const streetView = new StreetViewControl({
+  googleApiKey: 'YOUR_GOOGLE_MAPS_API_KEY',
+  createMarker: (options) => new mapboxgl.Marker(options),
+});
+
+map.addControl(streetView);
+```
+
+The factory receives `{ element, anchor: 'center' }` — the marker element the
+control built and styled — and must return something with `setLngLat`, `addTo`
+and `remove` (`StreetViewMarkerHandle`). Both libraries' `Marker` classes
+already satisfy that, so the one-liner above is the whole integration.
 
 ## Events
 

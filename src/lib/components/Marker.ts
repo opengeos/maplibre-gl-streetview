@@ -1,13 +1,19 @@
-import { Marker as MapLibreMarker, type LngLatLike, type Map as MapLibreMap } from 'maplibre-gl';
+import { Marker as MapLibreMarker, type LngLatLike } from 'maplibre-gl';
 import { CSS_CLASSES, DEFAULT_MARKER_OPTIONS } from '../core/constants';
-import type { MarkerOptions } from '../core/types';
+import type { CreateStreetViewMarker, MarkerOptions, StreetViewMarkerHandle } from '../core/types';
 import { createElement, normalizeHeading } from '../utils/helpers';
 
 /**
  * Street view location marker with direction indicator.
+ *
+ * The element and its direction arrow belong to this class; only the
+ * positioning is delegated, to `maplibre-gl`'s `Marker` by default or to
+ * whatever a `createMarker` factory builds. That split is what lets the control
+ * run on `mapbox-gl`, whose map has none of the internals MapLibre's `Marker`
+ * reads on every move.
  */
 export class StreetViewMarker {
-  private _marker: MapLibreMarker;
+  private _marker: StreetViewMarkerHandle;
   private _element: HTMLElement;
   private _direction: HTMLElement;
   private _heading = 0;
@@ -17,18 +23,20 @@ export class StreetViewMarker {
    * Creates a new StreetViewMarker.
    *
    * @param options - Marker configuration options
+   * @param createMarker - Builds the engine marker that positions the element.
+   *   Defaults to `maplibre-gl`'s `Marker`.
    */
-  constructor(options: MarkerOptions = {}) {
+  constructor(options: MarkerOptions = {}, createMarker?: CreateStreetViewMarker) {
     const mergedOptions = { ...DEFAULT_MARKER_OPTIONS, ...options };
 
     this._showDirection = mergedOptions.showDirection;
     this._element = this.createMarkerElement(mergedOptions);
     this._direction = this._element.querySelector(`.${CSS_CLASSES.MARKER_DIRECTION}`)!;
 
-    this._marker = new MapLibreMarker({
-      element: this._element,
-      anchor: 'center',
-    });
+    const markerOptions = { element: this._element, anchor: 'center' } as const;
+    this._marker = createMarker
+      ? createMarker(markerOptions)
+      : new MapLibreMarker(markerOptions);
   }
 
   /**
@@ -60,11 +68,14 @@ export class StreetViewMarker {
   /**
    * Adds the marker to a map at a specific location.
    *
-   * @param map - The MapLibre map instance
+   * @param map - The map instance, of whichever engine built this marker
    * @param lngLat - The location to place the marker
    */
-  addTo(map: MapLibreMap, lngLat: LngLatLike): this {
-    this._marker.setLngLat(lngLat).addTo(map);
+  addTo(map: unknown, lngLat: LngLatLike): this {
+    // Not chained: `setLngLat` returning the marker is a maplibre-gl/mapbox-gl
+    // convenience, not part of the handle contract a factory must satisfy.
+    this._marker.setLngLat(lngLat);
+    this._marker.addTo(map);
     return this;
   }
 
@@ -157,9 +168,9 @@ export class StreetViewMarker {
   }
 
   /**
-   * Gets the underlying MapLibre marker.
+   * Gets the underlying engine marker.
    */
-  getMarker(): MapLibreMarker {
+  getMarker(): StreetViewMarkerHandle {
     return this._marker;
   }
 

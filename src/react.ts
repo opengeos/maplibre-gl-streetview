@@ -16,6 +16,8 @@ export type {
   ImageryResult,
   ViewState,
   MarkerOptions,
+  StreetViewMarkerHandle,
+  CreateStreetViewMarker,
   ControlPosition,
   ProviderConfig,
 } from './lib/core/types';

@@ -175,7 +175,7 @@ export class StreetViewControl implements IControl {
 
     // Create marker if enabled
     if (this._options.showMarker) {
-      this._marker = new StreetViewMarker(this._options.markerOptions);
+      this._marker = new StreetViewMarker(this._options.markerOptions, this._options.createMarker);
     }
 
     // Replace the viewer's default click prompt with a setup card when no
