@@ -12,10 +12,16 @@ export const DEFAULT_MARKER_OPTIONS: Required<MarkerOptions> = {
 /**
  * Default control options.
  */
-export const DEFAULT_OPTIONS: Required<Omit<StreetViewControlOptions, 'googleApiKey' | 'mapillaryAccessToken' | 'className'>> & {
+export const DEFAULT_OPTIONS: Required<
+  Omit<StreetViewControlOptions, 'googleApiKey' | 'mapillaryAccessToken' | 'className' | 'createMarker'>
+> & {
   googleApiKey: string;
   mapillaryAccessToken: string;
   className: string;
+  // No static default: the fallback is maplibre-gl's own Marker, constructed
+  // inside StreetViewMarker so importing the constants does not pull the
+  // library's runtime in.
+  createMarker?: StreetViewControlOptions['createMarker'];
 } = {
   collapsed: true,
   position: 'top-right',

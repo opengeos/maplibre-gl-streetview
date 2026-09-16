@@ -64,7 +64,48 @@ export interface StreetViewControlOptions {
 
   /** Marker options */
   markerOptions?: MarkerOptions;
+
+  /**
+   * Build the map marker that shows the street view location.
+   *
+   * Defaults to `maplibre-gl`'s own `Marker`. Supply a factory to place the
+   * marker with a different engine's class: MapLibre's `Marker` reads
+   * `map._camera.transform` on every move, which a `mapbox-gl` map does not
+   * have, so a host rendering with Mapbox GL JS passes
+   * `(options) => new mapboxgl.Marker(options)` here and the control's own
+   * marker element is placed by that engine instead.
+   *
+   * The control only ever calls `setLngLat`, `addTo` and `remove` on what it
+   * gets back — see {@link StreetViewMarkerHandle}.
+   */
+  createMarker?: CreateStreetViewMarker;
 }
+
+/**
+ * The marker surface the control uses. Both `maplibre-gl`'s and `mapbox-gl`'s
+ * `Marker` already satisfy it, so either class can be handed to
+ * {@link StreetViewControlOptions.createMarker} unchanged.
+ */
+export interface StreetViewMarkerHandle {
+  /** Move the marker to a location. */
+  setLngLat(lngLat: LngLatLike): unknown;
+
+  /** Add the marker to a map. */
+  addTo(map: unknown): unknown;
+
+  /** Take the marker off the map. */
+  remove(): unknown;
+}
+
+/**
+ * Factory for {@link StreetViewControlOptions.createMarker}. It is handed the
+ * control's own marker element (already styled and rotated by
+ * `StreetViewMarker`), so only the positioning belongs to the engine.
+ */
+export type CreateStreetViewMarker = (options: {
+  element: HTMLElement;
+  anchor: 'center';
+}) => StreetViewMarkerHandle;
 
 /**
  * Marker customization options.
